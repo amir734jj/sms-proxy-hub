@@ -80,6 +80,7 @@ public sealed class ApiService(
     public Task<SendSmsResponse> SendSmsAsync(SendSmsRequest req) => messagesApi.SendAsync(req);
     public Task<List<SmsMessageDto>> GetMessagesAsync() => messagesApi.GetAllAsync();
     public Task<List<SmsMessageDto>> GetMessagesByConnectionAsync(Guid connId) => messagesApi.GetByConnectionAsync(connId);
+    public Task<UsageStatsDto> GetUsageAsync(int days = 30) => messagesApi.GetUsageAsync(days);
 
     // Webhooks
     public Task<List<WebhookSubscriptionDto>> GetWebhooksAsync() => webhooksApi.GetAllAsync();

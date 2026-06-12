@@ -1,4 +1,5 @@
 @page "/"
+@inject ApiService Api
 @inject AuthService Auth
 @inject NavigationManager Nav
 
@@ -11,6 +12,95 @@
 else
 {
     <h4 class="mb-4">Dashboard</h4>
+
+    @if (_usage is not null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <HxCard>
+                    <BodyTemplate>
+                        <div class="text-muted small">Sent (30d)</div>
+                        <h3 class="mb-0 text-success">@_usage.TotalSent</h3>
+                    </BodyTemplate>
+                </HxCard>
+            </div>
+            <div class="col-md-3">
+                <HxCard>
+                    <BodyTemplate>
+                        <div class="text-muted small">Failed (30d)</div>
+                        <h3 class="mb-0 text-danger">@_usage.TotalFailed</h3>
+                    </BodyTemplate>
+                </HxCard>
+            </div>
+            <div class="col-md-3">
+                <HxCard>
+                    <BodyTemplate>
+                        <div class="text-muted small">Replies (30d)</div>
+                        <h3 class="mb-0 text-info">@_usage.TotalReplies</h3>
+                    </BodyTemplate>
+                </HxCard>
+            </div>
+            <div class="col-md-3">
+                <HxCard>
+                    <BodyTemplate>
+                        <div class="text-muted small">Total (30d)</div>
+                        <h3 class="mb-0">@(_usage.TotalSent + _usage.TotalFailed)</h3>
+                    </BodyTemplate>
+                </HxCard>
+            </div>
+        </div>
+
+        @if (_usage.ByConnection.Count > 0)
+        {
+            <HxCard CssClass="mb-4">
+                <HeaderTemplate><strong>Usage by Connection</strong></HeaderTemplate>
+                <BodyTemplate>
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Connection</th><th>Provider</th><th>Sent</th><th>Failed</th><th>Replies</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in _usage.ByConnection)
+                            {
+                                <tr>
+                                    <td>@c.ConnectionName</td>
+                                    <td><span class="badge bg-info">@c.ProviderType</span></td>
+                                    <td class="text-success">@c.Sent</td>
+                                    <td class="text-danger">@c.Failed</td>
+                                    <td class="text-info">@c.Replies</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </BodyTemplate>
+            </HxCard>
+        }
+
+        @if (_usage.Daily.Count > 0)
+        {
+            <HxCard CssClass="mb-4">
+                <HeaderTemplate><strong>Daily Activity (Last 30 Days)</strong></HeaderTemplate>
+                <BodyTemplate>
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Date</th><th>Sent</th><th>Failed</th><th>Replies</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in _usage.Daily.AsEnumerable().Reverse().Take(30))
+                            {
+                                <tr>
+                                    <td>@d.Date.ToString("MMM dd")</td>
+                                    <td class="text-success">@d.Sent</td>
+                                    <td class="text-danger">@d.Failed</td>
+                                    <td class="text-info">@d.Replies</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </BodyTemplate>
+            </HxCard>
+        }
+    }
 
     <div class="row g-3">
         <div class="col-md-4">
@@ -41,4 +131,16 @@ else
             </HxCard>
         </div>
     </div>
+}
+
+@code {
+    private UsageStatsDto? _usage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) return;
+
+        try { _usage = await Api.GetUsageAsync(); }
+        catch { /* non-critical */ }
+    }
 }

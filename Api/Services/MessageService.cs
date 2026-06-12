@@ -111,4 +111,56 @@ public sealed class MessageService(
     {
         await Dal.Update(messageId, m => m.Status = SmsMessageStatus.ReplyReceived);
     }
+
+    public async Task<UsageStatsDto> GetUsageForUserAsync(Guid userId, int days = 30)
+    {
+        var connections = await connectionService.GetAllForUserAsync(userId);
+        var connectionIds = connections.Select(c => c.Id).ToList();
+
+        if (connectionIds.Count == 0)
+        {
+            return new UsageStatsDto();
+        }
+
+        var since = DateTimeOffset.UtcNow.AddDays(-days);
+
+        var messages = (await Dal.GetAll(
+            filterExprs: [m => connectionIds.Contains(m.ConnectionId) && m.CreatedAt >= since]
+        )).ToList();
+
+        var byConnection = connections.Select(c =>
+        {
+            var connMessages = messages.Where(m => m.ConnectionId == c.Id).ToList();
+            return new ConnectionUsageDto
+            {
+                ConnectionId = c.Id,
+                ConnectionName = c.Name,
+                ProviderType = c.ProviderType,
+                Sent = connMessages.Count(m => m.Status == SmsMessageStatus.Sent),
+                Failed = connMessages.Count(m => m.Status == SmsMessageStatus.Failed),
+                Replies = connMessages.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
+            };
+        }).Where(c => c.Sent + c.Failed + c.Replies > 0).ToList();
+
+        var daily = messages
+            .GroupBy(m => DateOnly.FromDateTime(m.CreatedAt.UtcDateTime))
+            .Select(g => new DailyUsageDto
+            {
+                Date = g.Key,
+                Sent = g.Count(m => m.Status == SmsMessageStatus.Sent),
+                Failed = g.Count(m => m.Status == SmsMessageStatus.Failed),
+                Replies = g.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
+            })
+            .OrderBy(d => d.Date)
+            .ToList();
+
+        return new UsageStatsDto
+        {
+            TotalSent = messages.Count(m => m.Status == SmsMessageStatus.Sent),
+            TotalFailed = messages.Count(m => m.Status == SmsMessageStatus.Failed),
+            TotalReplies = messages.Count(m => m.Status == SmsMessageStatus.ReplyReceived),
+            ByConnection = byConnection,
+            Daily = daily
+        };
+    }
 }

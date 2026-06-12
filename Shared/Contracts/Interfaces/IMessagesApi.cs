@@ -15,4 +15,8 @@ public interface IMessagesApi
     [Get("/api/messages/connection/{connectionId}")]
     [Headers("Authorization: Bearer")]
     Task<List<SmsMessageDto>> GetByConnectionAsync(Guid connectionId);
+
+    [Get("/api/messages/usage")]
+    [Headers("Authorization: Bearer")]
+    Task<UsageStatsDto> GetUsageAsync([Query] int days = 30);
 }

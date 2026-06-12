@@ -44,4 +44,13 @@ public sealed class MessagesController(
 
         return Ok(await messageService.GetByConnectionAsync(connectionId));
     }
+
+    [HttpGet("usage")]
+    public async Task<IActionResult> GetUsage([FromQuery] int days = 30)
+    {
+        if (days < 1) days = 1;
+        if (days > 365) days = 365;
+
+        return Ok(await messageService.GetUsageForUserAsync(User.GetUserId(), days));
+    }
 }
