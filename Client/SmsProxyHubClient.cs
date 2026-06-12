@@ -14,6 +14,7 @@ namespace SmsProxyHub.Client
     public sealed class SmsProxyHubClient
     {
         private readonly HttpClient _httpClient;
+        private readonly string _apiToken;
         private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
             NullValueHandling = NullValueHandling.Ignore
@@ -22,8 +23,7 @@ namespace SmsProxyHub.Client
         public SmsProxyHubClient(HttpClient httpClient, string apiToken)
         {
             _httpClient = httpClient;
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", apiToken);
+            _apiToken = apiToken;
         }
 
         /// <summary>
@@ -53,8 +53,10 @@ namespace SmsProxyHub.Client
 
             var json = JsonConvert.SerializeObject(request, JsonSettings);
             using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/messages/send") { Content = content })
             {
-                var response = await _httpClient.PostAsync("/api/messages/send", content, ct).ConfigureAwait(false);
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiToken);
+                var response = await _httpClient.SendAsync(httpRequest, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
