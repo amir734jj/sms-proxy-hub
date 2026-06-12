@@ -79,7 +79,7 @@ else
 {
     <table class="table table-sm">
         <thead>
-            <tr><th>Event</th><th>URL</th><th>Status</th><th>Error</th><th>Time</th></tr>
+            <tr><th>Event</th><th>URL</th><th>Status</th><th>Error</th><th>Time</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var d in _deliveries)
@@ -99,6 +99,7 @@ else
                     </td>
                     <td><small class="text-muted">@(d.Error ?? "-")</small></td>
                     <td><small>@d.CreatedAt.ToString("MMM dd HH:mm:ss")</small></td>
+                    <td><HxButton Text="Replay" Color="ThemeColor.Warning" Size="ButtonSize.Small" OnClick="@(() => ReplayAsync(d.Id))" /></td>
                 </tr>
             }
         </tbody>
@@ -152,5 +153,17 @@ else
         if (!await MessageBox.ConfirmAsync("Delete Webhook", $"Delete webhook to {w.Url}?")) return;
         try { await Api.DeleteWebhookAsync(w.Id); _success = "Deleted."; await LoadAsync(); }
         catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task ReplayAsync(Guid deliveryId)
+    {
+        _error = null; _success = null;
+        try
+        {
+            await Api.ReplayWebhookAsync(deliveryId);
+            _success = "Webhook replayed.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = $"Replay failed: {ex.Message}"; }
     }
 }

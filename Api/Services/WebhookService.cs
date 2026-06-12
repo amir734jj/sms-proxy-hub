@@ -151,4 +151,47 @@ public sealed class WebhookService(
             }
         )).ToList();
     }
+
+    public async Task<bool> ReplayAsync(Guid userId, Guid deliveryId)
+    {
+        var connections = await connectionService.GetAllForUserAsync(userId);
+        var connectionIds = connections.Select(c => c.Id).ToHashSet();
+
+        var deliveries = (await repository.For<WebhookDelivery>().GetAll(
+            filterExprs: [d => d.Id == deliveryId], maxResults: 1)).ToList();
+
+        if (deliveries.Count == 0) return false;
+        var original = deliveries.First();
+        if (!connectionIds.Contains(original.ConnectionId)) return false;
+
+        var replay = new WebhookDelivery
+        {
+            WebhookSubscriptionId = original.WebhookSubscriptionId,
+            ConnectionId = original.ConnectionId,
+            Event = original.Event,
+            Url = original.Url,
+            RequestBody = original.RequestBody
+        };
+
+        try
+        {
+            var httpClient = httpClientFactory.CreateClient();
+            using var content = new StringContent(original.RequestBody, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, original.Url) { Content = content };
+
+            var response = await httpClient.SendAsync(request);
+            replay.HttpStatus = (int)response.StatusCode;
+            replay.Success = response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            replay.Success = false;
+            replay.Error = ex.Message;
+        }
+
+        try { await repository.For<WebhookDelivery>().Save(replay); }
+        catch (Exception ex) { logger.LogError(ex, "Failed to save replay delivery log"); }
+
+        return true;
+    }
 }

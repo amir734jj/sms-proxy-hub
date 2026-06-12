@@ -52,4 +52,11 @@ public sealed class WebhooksController(IWebhookService webhookService) : Control
     {
         return Ok(await webhookService.GetDeliveriesForUserAsync(User.GetUserId(), limit));
     }
+
+    [HttpPost("deliveries/{id:guid}/replay")]
+    public async Task<IActionResult> Replay(Guid id)
+    {
+        var replayed = await webhookService.ReplayAsync(User.GetUserId(), id);
+        return replayed ? Ok() : NotFound();
+    }
 }

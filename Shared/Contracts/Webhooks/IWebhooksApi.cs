@@ -19,4 +19,8 @@ public interface IWebhooksApi
     [Get("/api/webhooks/deliveries")]
     [Headers("Authorization: Bearer")]
     Task<List<WebhookDeliveryDto>> GetDeliveriesAsync([Query] int limit = 50);
+
+    [Post("/api/webhooks/deliveries/{id}/replay")]
+    [Headers("Authorization: Bearer")]
+    Task ReplayAsync(Guid id);
 }

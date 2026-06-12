@@ -88,6 +88,7 @@ public sealed class ApiService(
     public Task<WebhookSubscriptionDto> CreateWebhookAsync(CreateWebhookRequest req) => webhooksApi.CreateAsync(req);
     public Task DeleteWebhookAsync(Guid id) => webhooksApi.DeleteAsync(id);
     public Task<List<WebhookDeliveryDto>> GetWebhookDeliveriesAsync(int limit = 50) => webhooksApi.GetDeliveriesAsync(limit);
+    public Task ReplayWebhookAsync(Guid deliveryId) => webhooksApi.ReplayAsync(deliveryId);
 
     // API Tokens
     public Task<List<ApiTokenDto>> GetApiTokensAsync() => apiTokensApi.GetAllAsync();
