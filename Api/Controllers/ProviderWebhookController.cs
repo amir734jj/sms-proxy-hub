@@ -58,17 +58,18 @@ public sealed class ProviderWebhookController(
         var originalMessage = await messageService.FindLatestSentToPhoneAsync(connectionId, normalizedPhone);
         string? originalPayload = originalMessage?.Payload;
 
-        if (originalMessage is not null)
-        {
-            await messageService.MarkReplyReceivedAsync(originalMessage.Id);
-        }
-
         // Forward to all active webhook subscriptions for this connection
         var subscriptions = await webhookService.GetActiveForConnectionAsync(connectionId);
         foreach (var sub in subscriptions)
         {
             await webhookService.DeliverWebhookAsync(
                 sub, normalizedPhone, incoming.Message, originalPayload, connectionId);
+        }
+
+        // Mark reply received after successful delivery
+        if (originalMessage is not null)
+        {
+            await messageService.MarkReplyReceivedAsync(originalMessage.Id);
         }
 
         return Ok();
