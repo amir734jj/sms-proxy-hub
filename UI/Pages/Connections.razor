@@ -70,7 +70,7 @@ else
                                 <span class="badge bg-info">@c.ProviderType</span>
                                 <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
                                 <span class="badge bg-dark" title="Failover priority (lower = tried first)">Priority: @c.Priority</span>
-                                <small class="text-muted">Webhook URL: <code>/api/provider-webhook/@c.Id</code></small>
+                                <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
                         </div>
                         <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small"
