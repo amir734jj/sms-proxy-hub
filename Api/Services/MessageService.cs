@@ -25,9 +25,9 @@ public sealed class MessageService(
         if (connectionId is not null)
         {
             var connection = await connectionService.GetByIdAsync(connectionId.Value);
-            if (connection is null || !connection.IsActive)
+            if (connection is null || !connection.IsActive || connection.UserId != userId)
             {
-                logger.LogWarning("Connection {ConnectionId} not found or inactive", connectionId);
+                logger.LogWarning("Connection {ConnectionId} not found, inactive, or not owned by user", connectionId);
                 return (null, false, null);
             }
 
