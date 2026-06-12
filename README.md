@@ -38,22 +38,3 @@ var response = await smsClient.SendSmsAsync(
     message: "Hello!",
     payload: "{\"clinicId\":\"abc\",\"patientId\":123}");
 ```
-
-## Docker
-
-```bash
-docker build -t sms-proxy-hub .
-docker run -e DATABASE_URL=postgres://user:pass@host:5432/db \
-           -e Jwt__Key=your-32-char-secret \
-           -p 80:80 sms-proxy-hub
-```
-
-## NuGet publishing
-
-Pushing to `master` triggers the GitHub Actions workflow that builds and publishes `SmsProxyHub.Client` to nuget.org.
-
-## Re-generating the SmsGate client
-
-```bash
-cd Api && nswag run nswag.json
-```

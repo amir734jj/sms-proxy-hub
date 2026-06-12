@@ -8,7 +8,7 @@ using Message = Api.Generated.SmsGate.Message;
 
 namespace Api.Providers;
 
-public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogger<SmsGateProvider> logger) : ISmsProvider
+public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<SmsGateProvider> logger) : ISmsProvider
 {
     public SmsProviderType ProviderType => SmsProviderType.SmsGate;
 
@@ -97,7 +97,40 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
         }
     }
 
-    private async Task<SmsGateClient?> CreateAuthenticatedClientAsync(SmsGateConnectionConfig config)
+    public async Task RegisterWebhookAsync(SmsGateConnectionConfig config, Guid connectionId)
+    {
+        var publicUrl = configuration["App:PublicUrl"];
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            logger.LogWarning("App:PublicUrl not configured, skipping SMS Gate webhook registration");
+            return;
+        }
+
+        try
+        {
+            var client = await CreateAuthenticatedClientAsync(config, includeWebhookScope: true);
+            if (client is null) return;
+
+            var webhookUrl = $"{publicUrl.TrimEnd('/')}/api/provider-webhook/{connectionId}";
+            var webhookId = $"sms-proxy-hub-{connectionId}";
+
+            await client.WebhooksPOSTAsync(new Webhook
+            {
+                Id = webhookId,
+                Event = WebhookEvent.SmsReceived,
+                Url = webhookUrl,
+                DeviceId = config.DeviceId
+            });
+
+            logger.LogInformation("SMS Gate webhook registered: {WebhookId} -> {Url}", webhookId, webhookUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to register SMS Gate webhook for connection {ConnectionId}", connectionId);
+        }
+    }
+
+    private async Task<SmsGateClient?> CreateAuthenticatedClientAsync(SmsGateConnectionConfig config, bool includeWebhookScope = false)
     {
         try
         {
@@ -112,10 +145,15 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
                 BaseUrl = config.BaseUrl.TrimEnd('/') + "/api"
             };
 
+            var scopes = new System.Collections.ObjectModel.Collection<JWTScope>
+                { JWTScope.MessagesSend, JWTScope.MessagesList, JWTScope.DevicesList };
+            if (includeWebhookScope)
+                scopes.Add(JWTScope.WebhooksWrite);
+
             var tokenResponse = await client.TokenPOSTAsync(new TokenRequest
             {
                 Ttl = 3600,
-                Scopes = [JWTScope.MessagesSend, JWTScope.MessagesList, JWTScope.DevicesList]
+                Scopes = scopes
             });
 
             // Switch to Bearer auth with the new token

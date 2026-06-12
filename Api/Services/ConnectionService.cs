@@ -1,5 +1,6 @@
 using Api.Data.Entities;
 using Api.Interfaces;
+using Api.Providers;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
 using Newtonsoft.Json;
@@ -7,7 +8,7 @@ using Shared.Contracts;
 
 namespace Api.Services;
 
-public sealed class ConnectionService(IEfRepository repository) : IConnectionService
+public sealed class ConnectionService(IEfRepository repository, SmsGateProvider smsGateProvider) : IConnectionService
 {
     private IBasicCrud<SmsConnection> Dal => repository.For<SmsConnection>();
 
@@ -36,6 +37,9 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
             Priority = request.Priority
         });
 
+        if (request.Config is SmsGateConnectionConfig smsGateConfig)
+            await smsGateProvider.RegisterWebhookAsync(smsGateConfig, entity.Id);
+
         return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.CreatedAt);
     }
 
@@ -51,6 +55,9 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
             c.IsActive = request.IsActive;
             c.Priority = request.Priority;
         });
+
+        if (request.Config is SmsGateConnectionConfig smsGateConfig)
+            await smsGateProvider.RegisterWebhookAsync(smsGateConfig, id);
 
         return true;
     }
