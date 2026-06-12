@@ -126,7 +126,6 @@ public class InitialCreate : Migration
             .WithColumn("CreatedAt").AsDateTimeOffset().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime);
 
         Create.Index("IX_ApiTokens_UserId").OnTable("ApiTokens").OnColumn("UserId");
-        Create.Index("IX_ApiTokens_Token").OnTable("ApiTokens").OnColumn("Token");
     }
 
     public override void Down()
