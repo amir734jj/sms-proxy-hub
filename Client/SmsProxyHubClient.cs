@@ -27,11 +27,20 @@ namespace SmsProxyHub.Client
         }
 
         /// <summary>
-        /// Send an SMS through the proxy. If connectionId is null, tries all connections in priority order (failover).
-        /// Optionally include a payload that gets echoed back on webhook reply.
+        /// Send an SMS. Payload gets echoed back on webhook reply.
         /// </summary>
-        public async Task<SendSmsResponse> SendSmsAsync(
-            Guid? connectionId, string phoneNumber, string message, object payload = null,
+        public Task<SendSmsResponse> SendSmsAsync(
+            Guid? connectionId, string phoneNumber, string message,
+            CancellationToken ct = default)
+        {
+            return SendSmsAsync<object>(connectionId, phoneNumber, message, null, ct);
+        }
+
+        /// <summary>
+        /// Send an SMS with a typed payload that gets serialized and echoed back on webhook reply.
+        /// </summary>
+        public async Task<SendSmsResponse> SendSmsAsync<T>(
+            Guid? connectionId, string phoneNumber, string message, T payload = default,
             CancellationToken ct = default)
         {
             var request = new SendSmsRequest
@@ -39,7 +48,7 @@ namespace SmsProxyHub.Client
                 ConnectionId = connectionId,
                 PhoneNumber = phoneNumber,
                 Message = message,
-                Payload = payload is string s ? s : payload != null ? JsonConvert.SerializeObject(payload, JsonSettings) : null
+                Payload = payload != null ? JsonConvert.SerializeObject(payload, JsonSettings) : null
             };
 
             var json = JsonConvert.SerializeObject(request, JsonSettings);
