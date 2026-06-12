@@ -1,8 +1,8 @@
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Api.Interfaces;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Shared.Contracts;
 
 namespace Api.Providers;
@@ -33,7 +33,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
                 textMessage = new { text = message }
             };
 
-            var json = JsonSerializer.Serialize(payload);
+            var json = JsonConvert.SerializeObject(payload);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await httpClient.PostAsync($"{smsGate.BaseUrl.TrimEnd('/')}/api/messages", content);
 
@@ -44,8 +44,8 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
             }
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<SmsGateSendResponse>(body);
-            return result?.Id;
+            var result = JObject.Parse(body);
+            return result["id"]?.ToString();
         }
         catch (Exception ex)
         {
@@ -59,14 +59,18 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
         using var reader = new StreamReader(request.Body, Encoding.UTF8);
         var body = await reader.ReadToEndAsync();
 
-        var webhook = JsonSerializer.Deserialize<SmsGateWebhookPayload>(body);
-        if (webhook?.Event != "sms:received" || webhook.Payload is null)
+        var webhook = JObject.Parse(body);
+        if (webhook["event"]?.ToString() != "sms:received")
+            return null;
+
+        var payload = webhook["payload"];
+        if (payload is null)
             return null;
 
         return new IncomingSms(
-            webhook.Payload.Sender ?? string.Empty,
-            webhook.Payload.Message?.Trim() ?? string.Empty,
-            webhook.Payload.MessageId);
+            payload["sender"]?.ToString() ?? string.Empty,
+            payload["message"]?.ToString().Trim() ?? string.Empty,
+            payload["messageId"]?.ToString());
     }
 
     private async Task<string?> GetAccessTokenAsync(SmsGateConnectionConfig config)
@@ -80,7 +84,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
                 new AuthenticationHeaderValue("Basic", credentials);
 
             var tokenPayload = new { ttl = 3600, scopes = new[] { "messages:send", "messages:list" } };
-            var json = JsonSerializer.Serialize(tokenPayload);
+            var json = JsonConvert.SerializeObject(tokenPayload);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await httpClient.PostAsync(
@@ -89,46 +93,13 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var tokenResult = JsonSerializer.Deserialize<SmsGateTokenResponse>(body);
-            return tokenResult?.AccessToken;
+            var result = JObject.Parse(body);
+            return result["access_token"]?.ToString();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "SmsGate authentication failed");
             return null;
         }
-    }
-
-    private sealed class SmsGateSendResponse
-    {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-    }
-
-    private sealed class SmsGateTokenResponse
-    {
-        [JsonPropertyName("access_token")]
-        public string? AccessToken { get; set; }
-    }
-
-    private sealed class SmsGateWebhookPayload
-    {
-        [JsonPropertyName("event")]
-        public string? Event { get; set; }
-
-        [JsonPropertyName("payload")]
-        public SmsGateWebhookMessage? Payload { get; set; }
-    }
-
-    private sealed class SmsGateWebhookMessage
-    {
-        [JsonPropertyName("messageId")]
-        public string? MessageId { get; set; }
-
-        [JsonPropertyName("message")]
-        public string? Message { get; set; }
-
-        [JsonPropertyName("sender")]
-        public string? Sender { get; set; }
     }
 }
