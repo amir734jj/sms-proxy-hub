@@ -69,7 +69,12 @@ else
     </div>
 }
 
-<h5 class="mt-4 mb-3">Delivery History</h5>
+<div class="d-flex align-items-center mt-4 mb-3">
+    <h5 class="mb-0">Delivery History</h5>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
 
 @if (_deliveries.Count == 0)
 {
