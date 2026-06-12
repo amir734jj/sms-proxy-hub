@@ -1,5 +1,6 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 @implements IDisposable
 
 <HxNavbar CssClass="bg-dark mb-3" ColorMode="ColorMode.Dark" Expand="NavbarExpand.MediumUp">
@@ -24,6 +25,9 @@
         @if (Auth.IsAuthenticated)
         {
             <span class="navbar-text text-white-50 me-2">Hi, @Auth.DisplayLabel</span>
+            <HxButton Icon="@(_isDark ? BootstrapIcon.SunFill : BootstrapIcon.MoonFill)"
+                      Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-1"
+                      OnClick="ToggleTheme" />
             <HxButton Text="Profile" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-1" OnClick="@(() => Nav.NavigateTo("/profile"))" />
             <HxButton Text="Logout" Color="ThemeColor.Danger" Size="ButtonSize.Small" OnClick="Logout" />
         }
@@ -31,6 +35,18 @@
 </HxNavbar>
 
 @code {
+    private bool _isDark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var theme = await Js.InvokeAsync<string>("themeManager.get");
+            _isDark = theme == "dark";
+            StateHasChanged();
+        }
+    }
+
     protected override void OnInitialized() => Auth.AuthStateChanged += StateHasChanged;
     public void Dispose() => Auth.AuthStateChanged -= StateHasChanged;
 
@@ -38,5 +54,11 @@
     {
         await Auth.ClearTokenAsync();
         Nav.NavigateTo("/login");
+    }
+
+    async Task ToggleTheme()
+    {
+        _isDark = !_isDark;
+        await Js.InvokeVoidAsync("themeManager.set", _isDark ? "dark" : "light");
     }
 }
