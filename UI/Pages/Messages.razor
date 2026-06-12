@@ -2,6 +2,8 @@
 @inject ApiService Api
 @inject AuthService Auth
 @inject NavigationManager Nav
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
 
 <PageTitle>Messages - SMS Proxy Hub</PageTitle>
 
@@ -41,7 +43,7 @@ else
                     <td class="text-truncate" style="max-width:250px" title="@m.Message">@m.Message</td>
                     <td><span class="badge @StatusBadge(m.Status)">@m.Status</span></td>
                     <td><small>@(m.ProviderMessageId ?? "-")</small></td>
-                    <td><small class="text-muted font-monospace" style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block" title="@(m.Payload ?? "")">@(m.Payload ?? "-")</small></td>
+                    <td><small class="text-muted font-monospace" style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block" title="@FormatPayload(m.Payload)">@FormatPayload(m.Payload)</small></td>
                     <td><small>@m.CreatedAt.ToString("MMM dd HH:mm")</small></td>
                 </tr>
             }
@@ -71,4 +73,15 @@ else
         SmsMessageStatus.ReplyReceived => "bg-info",
         _ => "bg-secondary"
     };
+
+    static string FormatPayload(string? payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload)) return "-";
+        try
+        {
+            var token = JToken.Parse(payload);
+            return token.ToString(Formatting.Indented);
+        }
+        catch { return payload; }
+    }
 }
