@@ -3,7 +3,7 @@ namespace Shared.Contracts;
 public record SmsConnectionDto(
     Guid Id,
     string Name,
-    string ProviderType,
+    SmsProviderType ProviderType,
     bool IsActive,
     int Priority,
     DateTimeOffset CreatedAt);

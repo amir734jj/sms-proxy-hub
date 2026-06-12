@@ -9,7 +9,7 @@ namespace Api.Providers;
 
 public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogger<SmsGateProvider> logger) : ISmsProvider
 {
-    public string ProviderType => "smsgate";
+    public SmsProviderType ProviderType => SmsProviderType.SmsGate;
 
     public async Task<string?> SendAsync(string to, string message, SmsConnectionConfig config)
     {

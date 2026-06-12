@@ -29,15 +29,15 @@
             <div class="col-md-2">
                 <label class="form-label">Provider</label>
                 <select class="form-select" @bind="_newProvider">
-                    <option value="smsgate">SmsGate</option>
-                    <option value="twilio">Twilio</option>
+                    <option value="@SmsProviderType.SmsGate">SmsGate</option>
+                    <option value="@SmsProviderType.Twilio">Twilio</option>
                 </select>
             </div>
             <div class="col-md-1">
                 <label class="form-label">Priority</label>
                 <input type="number" class="form-control" @bind="_newPriority" min="0" title="Lower number = tried first" />
             </div>
-            @if (_newProvider == "smsgate")
+            @if (_newProvider == SmsProviderType.SmsGate)
             {
                 <div class="col-md-2">
                     <label class="form-label">Base URL</label>
@@ -108,7 +108,8 @@ else
     List<SmsConnectionDto> _connections = [];
     bool _loading;
     string? _error, _success;
-    string _newName = "", _newProvider = "smsgate";
+    string _newName = "";
+    SmsProviderType _newProvider = SmsProviderType.SmsGate;
     int _newPriority;
     string _sgBaseUrl = "", _sgUsername = "", _sgPassword = "";
     string _twAccountSid = "", _twAuthToken = "", _twFromNumber = "";
@@ -130,8 +131,8 @@ else
 
         SmsConnectionConfig config = _newProvider switch
         {
-            "smsgate" => new SmsGateConnectionConfig { BaseUrl = _sgBaseUrl, Username = _sgUsername, Password = _sgPassword },
-            "twilio" => new TwilioConnectionConfig { AccountSid = _twAccountSid, AuthToken = _twAuthToken, FromNumber = _twFromNumber },
+            SmsProviderType.SmsGate => new SmsGateConnectionConfig { BaseUrl = _sgBaseUrl, Username = _sgUsername, Password = _sgPassword },
+            SmsProviderType.Twilio => new TwilioConnectionConfig { AccountSid = _twAccountSid, AuthToken = _twAuthToken, FromNumber = _twFromNumber },
             _ => throw new InvalidOperationException()
         };
 

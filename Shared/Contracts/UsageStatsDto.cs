@@ -13,7 +13,7 @@ public class ConnectionUsageDto
 {
     public Guid ConnectionId { get; init; }
     public string ConnectionName { get; init; } = string.Empty;
-    public string ProviderType { get; init; } = string.Empty;
+    public SmsProviderType ProviderType { get; init; }
     public int Sent { get; init; }
     public int Failed { get; init; }
     public int Replies { get; init; }

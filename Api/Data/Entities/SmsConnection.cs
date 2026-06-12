@@ -1,4 +1,5 @@
 using Api.Interfaces;
+using Shared.Contracts;
 
 namespace Api.Data.Entities;
 
@@ -11,7 +12,7 @@ public sealed class SmsConnection : IEntity
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string ProviderType { get; set; } = string.Empty;
+    public SmsProviderType ProviderType { get; set; }
     public string ConfigJson { get; set; } = "{}";
     public bool IsActive { get; set; } = true;
     public int Priority { get; set; }

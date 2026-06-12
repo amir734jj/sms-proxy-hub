@@ -8,7 +8,7 @@ namespace Api.Providers;
 
 public sealed class TwilioProvider(ILogger<TwilioProvider> logger) : ISmsProvider
 {
-    public string ProviderType => "twilio";
+    public SmsProviderType ProviderType => SmsProviderType.Twilio;
 
     public async Task<string?> SendAsync(string to, string message, SmsConnectionConfig config)
     {

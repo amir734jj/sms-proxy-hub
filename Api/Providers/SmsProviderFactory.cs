@@ -1,13 +1,14 @@
 using Api.Interfaces;
+using Shared.Contracts;
 
 namespace Api.Providers;
 
 public sealed class SmsProviderFactory(IEnumerable<ISmsProvider> providers) : ISmsProviderFactory
 {
-    private readonly Dictionary<string, ISmsProvider> _providers =
-        providers.ToDictionary(p => p.ProviderType, StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<SmsProviderType, ISmsProvider> _providers =
+        providers.ToDictionary(p => p.ProviderType);
 
-    public ISmsProvider GetProvider(string providerType)
+    public ISmsProvider GetProvider(SmsProviderType providerType)
     {
         if (_providers.TryGetValue(providerType, out var provider))
             return provider;

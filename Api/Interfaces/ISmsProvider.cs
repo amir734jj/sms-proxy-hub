@@ -9,9 +9,9 @@ namespace Api.Interfaces;
 public interface ISmsProvider
 {
     /// <summary>
-    /// Provider type identifier (e.g., "smsgate", "twilio"). Must match <see cref="SmsConnectionConfig.Type"/>.
+    /// Provider type identifier. Must match <see cref="SmsConnectionConfig.Type"/>.
     /// </summary>
-    string ProviderType { get; }
+    SmsProviderType ProviderType { get; }
 
     /// <summary>
     /// Send an SMS through this provider.
