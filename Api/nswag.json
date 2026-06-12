@@ -1,0 +1,31 @@
+{
+  "runtime": "Net100",
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "",
+      "json": "Generated/smsgate-openapi.json"
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "className": "SmsGateClient",
+      "namespace": "Api.Generated.SmsGate",
+      "generateClientInterfaces": false,
+      "generateDtoTypes": true,
+      "useBaseUrl": true,
+      "generateBaseUrlProperty": true,
+      "output": "Generated/SmsGateClient.cs",
+      "generateOptionalParameters": true,
+      "jsonLibrary": "NewtonsoftJson",
+      "exceptionClass": "SmsGateApiException",
+      "useHttpClientCreationMethod": false,
+      "disposeHttpClient": false,
+      "generateUpdateJsonSerializerSettingsMethod": true,
+      "dateTimeType": "System.DateTimeOffset",
+      "arrayType": "System.Collections.ObjectModel.Collection",
+      "arrayBaseType": "System.Collections.ObjectModel.Collection",
+      "arrayInstanceType": "System.Collections.ObjectModel.Collection",
+      "operationGenerationMode": "SingleClientFromOperationId"
+    }
+  }
+}

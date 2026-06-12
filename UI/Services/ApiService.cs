@@ -75,6 +75,7 @@ public sealed class ApiService(
     public Task<SmsConnectionDto> CreateConnectionAsync(CreateConnectionRequest req) => connectionsApi.CreateAsync(req);
     public Task UpdateConnectionAsync(Guid id, UpdateConnectionRequest req) => connectionsApi.UpdateAsync(id, req);
     public Task DeleteConnectionAsync(Guid id) => connectionsApi.DeleteAsync(id);
+    public Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync(SmsGateConnectionConfig config) => connectionsApi.GetSmsGateDevicesAsync(config);
 
     // Messages
     public Task<SendSmsResponse> SendSmsAsync(SendSmsRequest req) => messagesApi.SendAsync(req);

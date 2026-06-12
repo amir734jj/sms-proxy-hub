@@ -19,4 +19,8 @@ public interface IConnectionsApi
     [Delete("/api/connections/{id}")]
     [Headers("Authorization: Bearer")]
     Task DeleteAsync(Guid id);
+
+    [Post("/api/connections/smsgate-devices")]
+    [Headers("Authorization: Bearer")]
+    Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync([Body] SmsGateConnectionConfig config);
 }

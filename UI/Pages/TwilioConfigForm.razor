@@ -1,0 +1,35 @@
+<div class="col-md-2">
+    <label class="form-label">Account SID</label>
+    <input type="text" class="form-control" @bind="AccountSid" />
+</div>
+<div class="col-md-2">
+    <label class="form-label">Auth Token</label>
+    <input type="password" class="form-control" @bind="AuthToken" />
+</div>
+<div class="col-md-2">
+    <label class="form-label">From Number</label>
+    <input type="text" class="form-control" @bind="FromNumber" placeholder="+1..." />
+</div>
+
+@code {
+    [Parameter] public string AccountSid { get; set; } = "";
+    [Parameter] public EventCallback<string> AccountSidChanged { get; set; }
+    [Parameter] public string AuthToken { get; set; } = "";
+    [Parameter] public EventCallback<string> AuthTokenChanged { get; set; }
+    [Parameter] public string FromNumber { get; set; } = "";
+    [Parameter] public EventCallback<string> FromNumberChanged { get; set; }
+
+    public TwilioConnectionConfig GetConfig() => new()
+    {
+        AccountSid = AccountSid,
+        AuthToken = AuthToken,
+        FromNumber = FromNumber
+    };
+
+    public void Reset()
+    {
+        AccountSid = "";
+        AuthToken = "";
+        FromNumber = "";
+    }
+}

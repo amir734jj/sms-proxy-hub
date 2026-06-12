@@ -90,7 +90,8 @@ builder.Services
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            RoleClaimType = "role"
         };
     })
     .AddScheme<AuthenticationSchemeOptions, ApiTokenAuthHandler>(ApiTokenAuthHandler.SchemeName, _ => { })
@@ -128,7 +129,8 @@ builder.Services.AddHealthChecks();
 builder.Services.AddControllers().AddNewtonsoftJson();
 
 // Register SMS providers
-builder.Services.AddSingleton<ISmsProvider, SmsGateProvider>();
+builder.Services.AddSingleton<SmsGateProvider>();
+builder.Services.AddSingleton<ISmsProvider>(sp => sp.GetRequiredService<SmsGateProvider>());
 builder.Services.AddSingleton<ISmsProvider, TwilioProvider>();
 builder.Services.AddSingleton<ISmsProviderFactory, SmsProviderFactory>();
 

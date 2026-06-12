@@ -15,11 +15,8 @@ public sealed class ProviderWebhookController(
     IWebhookService webhookService,
     ILogger<ProviderWebhookController> logger) : ControllerBase
 {
-    /// <summary>
-    /// Receives webhook callbacks from SMS providers (SmsGate, Twilio, etc.).
-    /// Route: POST /api/provider-webhook/{connectionId}
-    /// Each connection gets a unique webhook URL to register with the provider.
-    /// </summary>
+    // POST /api/provider-webhook/{connectionId}
+    // Each connection has its own webhook URL to register with the SMS provider.
     [HttpPost("{connectionId:guid}")]
     public async Task<IActionResult> Receive(Guid connectionId)
     {

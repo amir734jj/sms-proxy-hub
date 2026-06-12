@@ -7,3 +7,5 @@ public record SmsConnectionDto(
     bool IsActive,
     int Priority,
     DateTimeOffset CreatedAt);
+
+public record SmsGateDeviceDto(string Id, string Name, string? LastSeen);

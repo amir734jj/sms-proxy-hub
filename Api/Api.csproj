@@ -28,11 +28,19 @@
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.0" />
         <PackageReference Include="Twilio" Version="7.8.1" />
+        <PackageReference Include="NSwag.MSBuild" Version="14.7.1">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Migrations\Migrations.csproj" />
       <ProjectReference Include="..\Shared\Shared.csproj" />
     </ItemGroup>
+
+    <Target Name="NSwag" BeforeTargets="PrepareForBuild" Condition="'$(SkipNSwag)' != 'true'">
+      <Exec ConsoleToMSBuild="true" Command="$(NSwagExe_Net100) run nswag.json /variables:Configuration=$(Configuration)" WorkingDirectory="$(ProjectDir)" />
+    </Target>
 
 </Project>

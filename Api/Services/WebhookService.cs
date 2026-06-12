@@ -90,6 +90,7 @@ public sealed class WebhookService(
         {
             var httpClient = httpClientFactory.CreateClient();
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, subscription.Url) { Content = content };
 
             // Sign with HMAC if secret is configured
             if (!string.IsNullOrWhiteSpace(subscription.Secret))
@@ -97,11 +98,11 @@ public sealed class WebhookService(
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
                 using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(subscription.Secret));
                 var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(json + timestamp));
-                content.Headers.Add("X-Signature", Convert.ToHexStringLower(hash));
-                content.Headers.Add("X-Timestamp", timestamp);
+                request.Headers.Add("X-Signature", Convert.ToHexStringLower(hash));
+                request.Headers.Add("X-Timestamp", timestamp);
             }
 
-            var response = await httpClient.PostAsync(subscription.Url, content);
+            var response = await httpClient.SendAsync(request);
             logger.LogInformation("Webhook delivered to {Url}, status {Status}",
                 subscription.Url, response.StatusCode);
         }

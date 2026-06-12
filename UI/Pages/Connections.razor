@@ -39,33 +39,11 @@
             </div>
             @if (_newProvider == SmsProviderType.SmsGate)
             {
-                <div class="col-md-2">
-                    <label class="form-label">Base URL</label>
-                    <input type="text" class="form-control" @bind="_sgBaseUrl" placeholder="https://..." />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Username</label>
-                    <input type="text" class="form-control" @bind="_sgUsername" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-control" @bind="_sgPassword" />
-                </div>
+                <SmsGateConfigForm @ref="_smsGateForm" OnError="e => { _error = e; StateHasChanged(); }" />
             }
             else
             {
-                <div class="col-md-2">
-                    <label class="form-label">Account SID</label>
-                    <input type="text" class="form-control" @bind="_twAccountSid" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Auth Token</label>
-                    <input type="password" class="form-control" @bind="_twAuthToken" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">From Number</label>
-                    <input type="text" class="form-control" @bind="_twFromNumber" placeholder="+1..." />
-                </div>
+                <TwilioConfigForm @ref="_twilioForm" />
             }
             <div class="col-md-1 d-flex align-items-end">
                 <HxButton Text="Create" Color="ThemeColor.Primary" OnClick="CreateAsync" CssClass="w-100" />
@@ -111,8 +89,8 @@ else
     string _newName = "";
     SmsProviderType _newProvider = SmsProviderType.SmsGate;
     int _newPriority;
-    string _sgBaseUrl = "", _sgUsername = "", _sgPassword = "";
-    string _twAccountSid = "", _twAuthToken = "", _twFromNumber = "";
+    SmsGateConfigForm? _smsGateForm;
+    TwilioConfigForm? _twilioForm;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -131,16 +109,17 @@ else
 
         SmsConnectionConfig config = _newProvider switch
         {
-            SmsProviderType.SmsGate => new SmsGateConnectionConfig { BaseUrl = _sgBaseUrl, Username = _sgUsername, Password = _sgPassword },
-            SmsProviderType.Twilio => new TwilioConnectionConfig { AccountSid = _twAccountSid, AuthToken = _twAuthToken, FromNumber = _twFromNumber },
+            SmsProviderType.SmsGate => _smsGateForm!.GetConfig(),
+            SmsProviderType.Twilio => _twilioForm!.GetConfig(),
             _ => throw new InvalidOperationException()
         };
 
         try
         {
             await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config, _newPriority));
-            _newName = ""; _newPriority = 0; _sgBaseUrl = ""; _sgUsername = ""; _sgPassword = "";
-            _twAccountSid = ""; _twAuthToken = ""; _twFromNumber = "";
+            _newName = ""; _newPriority = 0;
+            _smsGateForm?.Reset();
+            _twilioForm?.Reset();
             _success = "Connection created.";
             await LoadAsync();
         }

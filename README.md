@@ -1,40 +1,39 @@
 # SMS Proxy Hub
 
-A multi-provider SMS proxy with webhook callback support.
+Multi-provider SMS proxy with webhook callbacks. Send SMS through SmsGate or Twilio, get replies forwarded to your app via webhooks with payload echo.
 
-## Architecture
+## Projects
 
-- **Api** – ASP.NET Core API with PostgreSQL, FluentMigrator, JWT + API token auth
-- **UI** – Blazor WebAssembly + Havit Bootstrap components
+- **Api** – ASP.NET Core backend, PostgreSQL, FluentMigrator, JWT + API token auth
+- **UI** – Blazor WASM frontend with Havit Bootstrap
 - **Shared** – DTOs, Refit interfaces, phone normalization
-- **Client** – NuGet package (`SmsProxyHub.Client`) for consumers
-- **Migrations** – FluentMigrator database migrations
+- **Client** – NuGet package (`SmsProxyHub.Client`) for consuming apps
+- **Migrations** – FluentMigrator migrations
 
-## SMS Providers
+## Providers
 
-Providers implement `ISmsProvider`. Currently supported:
+Providers implement `ISmsProvider`:
 
-- **SmsGate** – Basic auth → JWT token → REST API
-- **Twilio** – Account SID + Auth Token
+- **SmsGate** – private Android SMS gateway (Basic auth → JWT → REST). Uses NSwag-generated client from the [OpenAPI spec](https://docs.sms-gate.app/integration/api/). Supports device selection for multi-user setups.
+- **Twilio** – standard Twilio REST API
 
-To add a new provider:
-1. Create a class implementing `ISmsProvider`
-2. Add a new `SmsConnectionConfig` subtype with `[JsonSubtypes.KnownSubType]`
-3. Register in `Program.cs` DI
-4. No database migration needed — config is stored as polymorphic JSON
+Adding a new provider:
+1. Implement `ISmsProvider`
+2. Add a `SmsConnectionConfig` subtype with `[JsonSubtypes.KnownSubType]`
+3. Register in `Program.cs`
+4. No DB migration needed — config is stored as polymorphic JSON
 
-## Payload Echo
+## Payload echo
 
-When sending an SMS, include an optional `payload` (any JSON string). When the recipient replies, the webhook callback to your registered URL will include the original `payload` — enabling stateless correlation.
+Include an optional `payload` (any JSON string) when sending. When the recipient replies, the webhook to your URL includes the original `payload` back — so you can correlate replies without storing state.
 
-## Consumer Usage (NuGet)
+## Client NuGet usage
 
 ```csharp
 services.AddSmsProxyHub("https://sms-proxy-hub.example.com", "your-api-token");
 
-// Then inject and use:
 var response = await smsClient.SendSmsAsync(
-    connectionId: Guid.Parse("..."),
+    connectionId: null, // null = try all connections by priority
     phoneNumber: "+15551234567",
     message: "Hello!",
     payload: "{\"clinicId\":\"abc\",\"patientId\":123}");
@@ -49,6 +48,12 @@ docker run -e DATABASE_URL=postgres://user:pass@host:5432/db \
            -p 80:80 sms-proxy-hub
 ```
 
-## NuGet Publishing
+## NuGet publishing
 
-Push a tag `v1.0.0` to trigger the GitHub Actions workflow that builds and publishes `SmsProxyHub.Client` to nuget.org.
+Pushing to `master` triggers the GitHub Actions workflow that builds and publishes `SmsProxyHub.Client` to nuget.org.
+
+## Re-generating the SmsGate client
+
+```bash
+cd Api && nswag run nswag.json
+```

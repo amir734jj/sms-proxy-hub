@@ -1,0 +1,86 @@
+@inject ApiService Api
+
+<div class="col-md-2">
+    <label class="form-label">Base URL</label>
+    <input type="text" class="form-control" @bind="BaseUrl" placeholder="https://..." />
+</div>
+<div class="col-md-2">
+    <label class="form-label">Username</label>
+    <input type="text" class="form-control" @bind="Username" />
+</div>
+<div class="col-md-2">
+    <label class="form-label">Password</label>
+    <input type="password" class="form-control" @bind="Password" />
+</div>
+<div class="col-md-3">
+    <label class="form-label">Device</label>
+    <div class="input-group">
+        <select class="form-select" @bind="DeviceId">
+            <option value="">Auto (random device)</option>
+            @foreach (var d in _devices)
+            {
+                <option value="@d.Id">@d.Name (@d.Id)</option>
+            }
+        </select>
+        <button class="btn btn-outline-secondary" type="button" @onclick="FetchDevicesAsync"
+                disabled="@_fetchingDevices" title="Fetch devices from SMS Gate server">
+            @if (_fetchingDevices) { <span class="spinner-border spinner-border-sm"></span> } else { <span>⟳</span> }
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string BaseUrl { get; set; } = "";
+    [Parameter] public EventCallback<string> BaseUrlChanged { get; set; }
+    [Parameter] public string Username { get; set; } = "";
+    [Parameter] public EventCallback<string> UsernameChanged { get; set; }
+    [Parameter] public string Password { get; set; } = "";
+    [Parameter] public EventCallback<string> PasswordChanged { get; set; }
+    [Parameter] public string DeviceId { get; set; } = "";
+    [Parameter] public EventCallback<string> DeviceIdChanged { get; set; }
+    [Parameter] public EventCallback<string?> OnError { get; set; }
+
+    List<SmsGateDeviceDto> _devices = [];
+    bool _fetchingDevices;
+
+    public SmsGateConnectionConfig GetConfig() => new()
+    {
+        BaseUrl = BaseUrl,
+        Username = Username,
+        Password = Password,
+        DeviceId = string.IsNullOrWhiteSpace(DeviceId) ? null : DeviceId
+    };
+
+    public void Reset()
+    {
+        BaseUrl = "";
+        Username = "";
+        Password = "";
+        DeviceId = "";
+        _devices = [];
+    }
+
+    async Task FetchDevicesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(BaseUrl) || string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+        {
+            await OnError.InvokeAsync("Fill in Base URL, Username and Password first.");
+            return;
+        }
+
+        _fetchingDevices = true;
+        try
+        {
+            _devices = await Api.GetSmsGateDevicesAsync(new SmsGateConnectionConfig
+            {
+                BaseUrl = BaseUrl,
+                Username = Username,
+                Password = Password
+            });
+            if (_devices.Count == 0)
+                await OnError.InvokeAsync("No devices found. Make sure credentials are correct and at least one device is registered.");
+        }
+        catch (Exception ex) { await OnError.InvokeAsync($"Failed to fetch devices: {ex.Message}"); }
+        finally { _fetchingDevices = false; }
+    }
+}

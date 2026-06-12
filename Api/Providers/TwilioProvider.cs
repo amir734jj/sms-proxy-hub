@@ -1,6 +1,6 @@
 using Api.Interfaces;
 using Shared.Contracts;
-using Twilio;
+using Twilio.Clients;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Types;
 
@@ -20,12 +20,13 @@ public sealed class TwilioProvider(ILogger<TwilioProvider> logger) : ISmsProvide
 
         try
         {
-            TwilioClient.Init(twilio.AccountSid, twilio.AuthToken);
+            var client = new Twilio.Clients.TwilioRestClient(twilio.AccountSid, twilio.AuthToken);
 
             var result = await MessageResource.CreateAsync(
                 body: message,
                 from: new PhoneNumber(twilio.FromNumber),
-                to: new PhoneNumber(to));
+                to: new PhoneNumber(to),
+                client: client);
 
             logger.LogInformation("Twilio SMS sent, SID={Sid}", result.Sid);
             return result.Sid;
