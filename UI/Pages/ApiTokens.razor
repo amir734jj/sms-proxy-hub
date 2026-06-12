@@ -57,7 +57,7 @@ else
             {
                 <tr>
                     <td>@t.Name</td>
-                    <td><code>@t.Token[..8]...</code></td>
+                    <td><code>@t.Token</code></td>
                     <td><span class="badge @(t.IsActive ? "bg-success" : "bg-secondary")">@(t.IsActive ? "Active" : "Inactive")</span></td>
                     <td><small>@t.CreatedAt.ToString("MMM dd, yyyy")</small></td>
                     <td><HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small" OnClick="@(() => DeleteAsync(t))" /></td>
