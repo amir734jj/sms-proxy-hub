@@ -4,6 +4,7 @@ using Newtonsoft.Json.Converters;
 
 namespace Shared.Contracts;
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum SmsProviderType
 {
     SmsGate,
