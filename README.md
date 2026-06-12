@@ -1,6 +1,6 @@
 # SMS Proxy Hub
 
-Multi-provider SMS proxy with webhook callbacks. Send SMS through SmsGate or Twilio, get replies forwarded to your app via webhooks with payload echo.
+Multi-provider SMS proxy with webhook callbacks. Send SMS through [SmsGate](https://docs.sms-gate.app/getting-started/) or [Twilio](https://www.twilio.com/en-us), get replies forwarded to your app via webhooks with payload echo.
 
 ## Projects
 
