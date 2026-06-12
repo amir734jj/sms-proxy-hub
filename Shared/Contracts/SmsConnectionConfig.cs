@@ -25,7 +25,7 @@ public sealed class SmsGateConnectionConfig : SmsConnectionConfig
     public string BaseUrl { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string? DeviceId { get; set; }
+    public string DeviceId { get; set; } = string.Empty;
 }
 
 public sealed class TwilioConnectionConfig : SmsConnectionConfig

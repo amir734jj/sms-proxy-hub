@@ -29,7 +29,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
             {
                 PhoneNumbers = [to],
                 TextMessage = new TextMessage { Text = message },
-                DeviceId = string.IsNullOrWhiteSpace(smsGate.DeviceId) ? null : smsGate.DeviceId
+                DeviceId = smsGate.DeviceId
             };
 
             var response = await client.MessagesPOSTAsync(request);
