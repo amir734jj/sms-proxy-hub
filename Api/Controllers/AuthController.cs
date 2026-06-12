@@ -100,7 +100,7 @@ public sealed class AuthController(
             [
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-                new Claim(ClaimTypes.Role, role)
+                new Claim("role", role)
             ],
             expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
