@@ -19,14 +19,20 @@ public sealed class MessagesController(
         if (string.IsNullOrWhiteSpace(req.PhoneNumber) || string.IsNullOrWhiteSpace(req.Message))
             return BadRequest("Phone number and message are required.");
 
-        if (!await connectionService.UserOwnsConnectionAsync(User.GetUserId(), req.ConnectionId))
-            return NotFound("Connection not found.");
+        var userId = User.GetUserId();
 
-        var (messageId, success) = await messageService.SendAsync(
-            req.ConnectionId, req.PhoneNumber, req.Message, req.Payload);
+        // If a specific connection is requested, verify ownership
+        if (req.ConnectionId is not null &&
+            !await connectionService.UserOwnsConnectionAsync(userId, req.ConnectionId.Value))
+        {
+            return NotFound("Connection not found.");
+        }
+
+        var (messageId, success, usedConnectionId) = await messageService.SendAsync(
+            userId, req.ConnectionId, req.PhoneNumber, req.Message, req.Payload);
 
         return success
-            ? Ok(new SendSmsResponse(messageId, "sent"))
+            ? Ok(new SendSmsResponse(messageId, "sent", usedConnectionId))
             : StatusCode(502, new SendSmsResponse(null, "failed"));
     }
 

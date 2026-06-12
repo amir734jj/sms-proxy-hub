@@ -14,5 +14,6 @@ public sealed class SmsConnection : IEntity
     public string ProviderType { get; set; } = string.Empty;
     public string ConfigJson { get; set; } = "{}";
     public bool IsActive { get; set; } = true;
+    public int Priority { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

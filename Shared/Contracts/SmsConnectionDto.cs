@@ -5,4 +5,5 @@ public record SmsConnectionDto(
     string Name,
     string ProviderType,
     bool IsActive,
+    int Priority,
     DateTimeOffset CreatedAt);

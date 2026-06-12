@@ -1,3 +1,3 @@
 namespace Shared.Contracts;
 
-public record UpdateConnectionRequest(string Name, SmsConnectionConfig Config, bool IsActive);
+public record UpdateConnectionRequest(string Name, SmsConnectionConfig Config, bool IsActive, int Priority);

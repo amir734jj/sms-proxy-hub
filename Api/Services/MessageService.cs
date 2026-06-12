@@ -16,30 +16,73 @@ public sealed class MessageService(
 {
     private IBasicCrud<SmsMessage> Dal => repository.For<SmsMessage>();
 
-    public async Task<(string? MessageId, bool Success)> SendAsync(
-        Guid connectionId, string phoneNumber, string message, string? payload)
+    public async Task<(string? MessageId, bool Success, Guid? UsedConnectionId)> SendAsync(
+        Guid userId, Guid? connectionId, string phoneNumber, string message, string? payload)
     {
-        var connection = await connectionService.GetByIdAsync(connectionId);
-        if (connection is null || !connection.IsActive)
+        var normalizedPhone = PhoneUtility.NormalizePhoneNumber(phoneNumber) ?? phoneNumber;
+
+        // If a specific connection is requested, try only that one
+        if (connectionId is not null)
         {
-            logger.LogWarning("Connection {ConnectionId} not found or inactive", connectionId);
-            return (null, false);
+            var connection = await connectionService.GetByIdAsync(connectionId.Value);
+            if (connection is null || !connection.IsActive)
+            {
+                logger.LogWarning("Connection {ConnectionId} not found or inactive", connectionId);
+                return (null, false, null);
+            }
+
+            var (msgId, ok) = await TrySendViaConnection(connection, normalizedPhone, message, payload);
+            return (msgId, ok, ok ? connection.Id : null);
         }
 
+        // No specific connection — try all active connections in priority order
+        var connections = await connectionService.GetActiveForUserInPriorityOrderAsync(userId);
+        if (connections.Count == 0)
+        {
+            logger.LogWarning("No active connections for user {UserId}", userId);
+            return (null, false, null);
+        }
+
+        foreach (var conn in connections)
+        {
+            var (msgId, ok) = await TrySendViaConnection(conn, normalizedPhone, message, payload);
+            if (ok)
+            {
+                return (msgId, true, conn.Id);
+            }
+
+            logger.LogWarning("Connection {ConnectionName} (priority {Priority}) failed, trying next",
+                conn.Name, conn.Priority);
+        }
+
+        logger.LogError("All {Count} connections failed for user {UserId}", connections.Count, userId);
+        return (null, false, null);
+    }
+
+    private async Task<(string? MessageId, bool Success)> TrySendViaConnection(
+        SmsConnection connection, string normalizedPhone, string message, string? payload)
+    {
         var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson);
         if (config is null)
         {
-            logger.LogError("Failed to deserialize config for connection {ConnectionId}", connectionId);
+            logger.LogError("Failed to deserialize config for connection {ConnectionId}", connection.Id);
+            await Dal.Save(new SmsMessage
+            {
+                ConnectionId = connection.Id,
+                To = normalizedPhone,
+                Message = message,
+                Payload = payload,
+                Status = SmsMessageStatus.Failed
+            });
             return (null, false);
         }
 
-        var normalizedPhone = PhoneUtility.NormalizePhoneNumber(phoneNumber) ?? phoneNumber;
         var provider = providerFactory.GetProvider(connection.ProviderType);
         var messageId = await provider.SendAsync(normalizedPhone, message, config);
 
-        var entity = await Dal.Save(new SmsMessage
+        await Dal.Save(new SmsMessage
         {
-            ConnectionId = connectionId,
+            ConnectionId = connection.Id,
             To = normalizedPhone,
             Message = message,
             ProviderMessageId = messageId,

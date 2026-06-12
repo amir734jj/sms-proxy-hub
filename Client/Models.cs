@@ -26,8 +26,11 @@ public sealed class WebhookCallbackPayload
 
 public sealed class SendSmsRequest
 {
+    /// <summary>
+    /// Optional. If null, tries all active connections in priority order (failover).
+    /// </summary>
     [JsonProperty("connectionId")]
-    public Guid ConnectionId { get; set; }
+    public Guid? ConnectionId { get; set; }
 
     [JsonProperty("phoneNumber")]
     public string PhoneNumber { get; set; } = string.Empty;
@@ -49,4 +52,7 @@ public sealed class SendSmsResponse
 
     [JsonProperty("status")]
     public string Status { get; set; } = string.Empty;
+
+    [JsonProperty("usedConnectionId")]
+    public Guid? UsedConnectionId { get; set; }
 }

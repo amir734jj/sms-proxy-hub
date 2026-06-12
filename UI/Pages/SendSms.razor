@@ -18,7 +18,7 @@
             <div class="col-md-4">
                 <label class="form-label">Connection</label>
                 <select class="form-select" @bind="_connectionId">
-                    <option value="">Select a connection</option>
+                    <option value="">Auto (try all by priority)</option>
                     @foreach (var c in _connections)
                     {
                         <option value="@c.Id">@c.Name (@c.ProviderType)</option>
@@ -59,7 +59,7 @@
     async Task SendAsync()
     {
         _error = null; _success = null;
-        if (!Guid.TryParse(_connectionId, out var connId)) { _error = "Select a connection."; return; }
+        Guid? connId = Guid.TryParse(_connectionId, out var parsed) ? parsed : null;
         if (string.IsNullOrWhiteSpace(_phone) || string.IsNullOrWhiteSpace(_message)) { _error = "Phone and message are required."; return; }
 
         _busy = true;

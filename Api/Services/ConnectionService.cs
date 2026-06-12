@@ -20,8 +20,8 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
     {
         return (await Dal.GetAll(
             filterExprs: [c => c.UserId == userId],
-            orderByDesc: c => c.CreatedAt,
-            project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.CreatedAt)
+            orderBy: c => c.Priority,
+            project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.Priority, c.CreatedAt)
         )).ToList();
     }
 
@@ -32,10 +32,11 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
             UserId = userId,
             Name = request.Name.Trim(),
             ProviderType = request.Config.Type,
-            ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings)
+            ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings),
+            Priority = request.Priority
         });
 
-        return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.CreatedAt);
+        return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.CreatedAt);
     }
 
     public async Task<bool> UpdateAsync(Guid userId, Guid id, UpdateConnectionRequest request)
@@ -48,6 +49,7 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
             c.ProviderType = request.Config.Type;
             c.ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings);
             c.IsActive = request.IsActive;
+            c.Priority = request.Priority;
         });
 
         return true;
@@ -71,5 +73,13 @@ public sealed class ConnectionService(IEfRepository repository) : IConnectionSer
     public Task<bool> UserOwnsConnectionAsync(Guid userId, Guid connectionId)
     {
         return Dal.Any([c => c.Id == connectionId && c.UserId == userId]);
+    }
+
+    public async Task<List<SmsConnection>> GetActiveForUserInPriorityOrderAsync(Guid userId)
+    {
+        return (await Dal.GetAll(
+            filterExprs: [c => c.UserId == userId && c.IsActive],
+            orderBy: c => c.Priority
+        )).ToList();
     }
 }

@@ -10,4 +10,5 @@ public interface IConnectionService
     Task<bool> DeleteAsync(Guid userId, Guid id);
     Task<Data.Entities.SmsConnection?> GetByIdAsync(Guid id);
     Task<bool> UserOwnsConnectionAsync(Guid userId, Guid connectionId);
+    Task<List<Data.Entities.SmsConnection>> GetActiveForUserInPriorityOrderAsync(Guid userId);
 }

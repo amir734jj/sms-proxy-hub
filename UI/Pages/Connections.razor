@@ -33,6 +33,10 @@
                     <option value="twilio">Twilio</option>
                 </select>
             </div>
+            <div class="col-md-1">
+                <label class="form-label">Priority</label>
+                <input type="number" class="form-control" @bind="_newPriority" min="0" title="Lower number = tried first" />
+            </div>
             @if (_newProvider == "smsgate")
             {
                 <div class="col-md-2">
@@ -87,6 +91,7 @@ else
                             <div class="d-flex gap-2 mt-1">
                                 <span class="badge bg-info">@c.ProviderType</span>
                                 <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
+                                <span class="badge bg-dark" title="Failover priority (lower = tried first)">Priority: @c.Priority</span>
                                 <small class="text-muted">Webhook URL: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
                         </div>
@@ -104,6 +109,7 @@ else
     bool _loading;
     string? _error, _success;
     string _newName = "", _newProvider = "smsgate";
+    int _newPriority;
     string _sgBaseUrl = "", _sgUsername = "", _sgPassword = "";
     string _twAccountSid = "", _twAuthToken = "", _twFromNumber = "";
 
@@ -131,8 +137,8 @@ else
 
         try
         {
-            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config));
-            _newName = ""; _sgBaseUrl = ""; _sgUsername = ""; _sgPassword = "";
+            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config, _newPriority));
+            _newName = ""; _newPriority = 0; _sgBaseUrl = ""; _sgUsername = ""; _sgPassword = "";
             _twAccountSid = ""; _twAuthToken = ""; _twFromNumber = "";
             _success = "Connection created.";
             await LoadAsync();

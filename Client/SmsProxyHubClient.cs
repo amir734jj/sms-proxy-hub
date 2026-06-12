@@ -23,10 +23,11 @@ public sealed class SmsProxyHubClient
     }
 
     /// <summary>
-    /// Send an SMS through the proxy. Optionally include a payload that gets echoed back on webhook reply.
+    /// Send an SMS through the proxy. If connectionId is null, tries all connections in priority order (failover).
+    /// Optionally include a payload that gets echoed back on webhook reply.
     /// </summary>
     public async Task<SendSmsResponse> SendSmsAsync(
-        Guid connectionId, string phoneNumber, string message, string? payload = null,
+        Guid? connectionId, string phoneNumber, string message, string? payload = null,
         CancellationToken ct = default)
     {
         var request = new SendSmsRequest
