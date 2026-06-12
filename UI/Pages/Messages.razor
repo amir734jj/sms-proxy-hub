@@ -3,7 +3,7 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
 
-<PageTitle>Messages – SMS Proxy Hub</PageTitle>
+<PageTitle>Messages - SMS Proxy Hub</PageTitle>
 
 @if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
 
@@ -40,8 +40,8 @@ else
                     <td>@m.To</td>
                     <td class="text-truncate" style="max-width:250px" title="@m.Message">@m.Message</td>
                     <td><span class="badge @StatusBadge(m.Status)">@m.Status</span></td>
-                    <td><small>@(m.ProviderMessageId ?? "—")</small></td>
-                    <td><small class="text-muted">@(m.Payload ?? "—")</small></td>
+                    <td><small>@(m.ProviderMessageId ?? "-")</small></td>
+                    <td><small class="text-muted">@(m.Payload ?? "-")</small></td>
                     <td><small>@m.CreatedAt.ToString("MMM dd HH:mm")</small></td>
                 </tr>
             }

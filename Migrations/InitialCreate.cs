@@ -76,7 +76,7 @@ public class InitialCreate : Migration
 
         Create.PrimaryKey("PK_AspNetUserTokens").OnTable("AspNetUserTokens").Columns("UserId", "LoginProvider", "Name");
 
-        // SmsConnections — single table for all providers, config stored as JSON
+        // SmsConnections -- single table for all providers, config stored as JSON
         Create.Table("SmsConnections")
             .WithColumn("Id").AsGuid().PrimaryKey().WithDefaultValue(MigrationExtensions.GenRandomUuid)
             .WithColumn("UserId").AsGuid().NotNullable()
@@ -89,7 +89,7 @@ public class InitialCreate : Migration
 
         Create.Index("IX_SmsConnections_UserId").OnTable("SmsConnections").OnColumn("UserId");
 
-        // SmsMessages — tracks every SMS for webhook correlation
+        // SmsMessages -- tracks every SMS for webhook correlation
         Create.Table("SmsMessages")
             .WithColumn("Id").AsGuid().PrimaryKey().WithDefaultValue(MigrationExtensions.GenRandomUuid)
             .WithColumn("ConnectionId").AsGuid().NotNullable()
@@ -115,7 +115,7 @@ public class InitialCreate : Migration
 
         Create.Index("IX_WebhookSubscriptions_ConnectionId").OnTable("WebhookSubscriptions").OnColumn("ConnectionId");
 
-        // ApiTokens — programmatic access for consumers like xldent
+        // ApiTokens -- programmatic access for consumers like xldent
         Create.Table("ApiTokens")
             .WithColumn("Id").AsGuid().PrimaryKey().WithDefaultValue(MigrationExtensions.GenRandomUuid)
             .WithColumn("UserId").AsGuid().NotNullable()

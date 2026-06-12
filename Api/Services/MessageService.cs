@@ -36,7 +36,7 @@ public sealed class MessageService(
             return (msgId, ok, ok ? connection.Id : null);
         }
 
-        // No specific connection — try all active connections in priority order
+        // No specific connection -- try all active connections in priority order
         var connections = await connectionService.GetActiveForUserInPriorityOrderAsync(userId);
         if (connections.Count == 0)
         {

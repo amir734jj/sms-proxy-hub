@@ -46,7 +46,7 @@ namespace SmsProxyHub.Client
 
         /// <summary>
         /// Optional payload that will be echoed back in the webhook callback when a reply is received.
-        /// Can be any object — it gets serialized to JSON automatically.
+        /// Can be any object - it gets serialized to JSON automatically.
         /// </summary>
         [JsonProperty("payload")]
         public object Payload { get; set; }

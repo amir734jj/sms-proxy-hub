@@ -6,7 +6,7 @@
     <PackageId>SmsProxyHub.Client</PackageId>
     <Version>1.0.0</Version>
     <Authors>amir734jj</Authors>
-    <Description>Client SDK for SmsProxyHub – send SMS through multiple providers with webhook support.</Description>
+    <Description>Client SDK for SmsProxyHub - send SMS through multiple providers with webhook support.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/amir734jj/sms-proxy-hub</RepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

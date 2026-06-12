@@ -5,7 +5,7 @@ namespace Api.Data.Entities;
 
 /// <summary>
 /// An SMS provider connection (SmsGate, Twilio, etc).
-/// Config is stored as polymorphic JSON using JsonSubTypes — no migration needed for new providers.
+/// Config is stored as polymorphic JSON using JsonSubTypes -- no migration needed for new providers.
 /// </summary>
 public sealed class SmsConnection : IEntity
 {

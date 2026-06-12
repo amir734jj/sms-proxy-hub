@@ -4,28 +4,28 @@ Multi-provider SMS proxy with webhook callbacks. Send SMS through SmsGate or Twi
 
 ## Projects
 
-- **Api** – ASP.NET Core backend, PostgreSQL, FluentMigrator, JWT + API token auth
-- **UI** – Blazor WASM frontend with Havit Bootstrap
-- **Shared** – DTOs, Refit interfaces, phone normalization
-- **Client** – NuGet package (`SmsProxyHub.Client`) for consuming apps
-- **Migrations** – FluentMigrator migrations
+- **Api** - ASP.NET Core backend, PostgreSQL, FluentMigrator, JWT + API token auth
+- **UI** - Blazor WASM frontend with Havit Bootstrap
+- **Shared** - DTOs, Refit interfaces, phone normalization
+- **Client** - NuGet package (`SmsProxyHub.Client`) for consuming apps
+- **Migrations** - FluentMigrator migrations
 
 ## Providers
 
 Providers implement `ISmsProvider`:
 
-- **SmsGate** – private Android SMS gateway (Basic auth → JWT → REST). Uses NSwag-generated client from the [OpenAPI spec](https://docs.sms-gate.app/integration/api/). Supports device selection for multi-user setups.
-- **Twilio** – standard Twilio REST API
+- **SmsGate** - private Android SMS gateway (Basic auth -> JWT -> REST). Uses NSwag-generated client from the [OpenAPI spec](https://docs.sms-gate.app/integration/api/). Supports device selection for multi-user setups.
+- **Twilio** - standard Twilio REST API
 
 Adding a new provider:
 1. Implement `ISmsProvider`
 2. Add a `SmsConnectionConfig` subtype with `[JsonSubtypes.KnownSubType]`
 3. Register in `Program.cs`
-4. No DB migration needed — config is stored as polymorphic JSON
+4. No DB migration needed -- config is stored as polymorphic JSON
 
 ## Payload echo
 
-Include an optional `payload` (any JSON string) when sending. When the recipient replies, the webhook to your URL includes the original `payload` back — so you can correlate replies without storing state.
+Include an optional `payload` (any JSON string) when sending. When the recipient replies, the webhook to your URL includes the original `payload` back -- so you can correlate replies without storing state.
 
 ## Client NuGet usage
 
@@ -64,8 +64,8 @@ Payload format:
 ```
 
 If a webhook secret is configured, the request includes HMAC-SHA256 signature headers:
-- `X-Signature` — hex-encoded HMAC of `body + timestamp`
-- `X-Timestamp` — unix timestamp (seconds)
+- `X-Signature` -- hex-encoded HMAC of `body + timestamp`
+- `X-Timestamp` -- unix timestamp (seconds)
 
 Verify in your app:
 ```csharp
@@ -81,10 +81,10 @@ sms-proxy-hub finds the most recent outbound SMS to the replying phone number on
 ### Webhook auto-registration
 
 When you create a connection, sms-proxy-hub automatically registers the webhook with the provider:
-- **SmsGate** — registers a device-specific `sms:received` webhook via the API
-- **Twilio** — updates the phone number's `SmsUrl` to point to the proxy
+- **SmsGate** -- registers a device-specific `sms:received` webhook via the API
+- **Twilio** -- updates the phone number's `SmsUrl` to point to the proxy
 
-No manual setup needed — just create the connection in the UI and it's ready.
+No manual setup needed -- just create the connection in the UI and it's ready.
 
 ## Docker
 

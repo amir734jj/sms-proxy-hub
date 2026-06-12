@@ -4,7 +4,7 @@
 @inject NavigationManager Nav
 @inject IHxMessageBoxService MessageBox
 
-<PageTitle>API Tokens – SMS Proxy Hub</PageTitle>
+<PageTitle>API Tokens - SMS Proxy Hub</PageTitle>
 
 @if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
 
@@ -37,7 +37,7 @@
 @if (_newToken is not null)
 {
     <HxAlert Color="ThemeColor.Warning" CssClass="mb-3">
-        <strong>New token created — copy it now, it won't be shown again:</strong><br />
+        <strong>New token created - copy it now, it won't be shown again:</strong><br />
         <code>@_newToken</code>
     </HxAlert>
 }
@@ -57,7 +57,7 @@ else
             {
                 <tr>
                     <td>@t.Name</td>
-                    <td><code>@t.Token[..8]…</code></td>
+                    <td><code>@t.Token[..8]...</code></td>
                     <td><span class="badge @(t.IsActive ? "bg-success" : "bg-secondary")">@(t.IsActive ? "Active" : "Inactive")</span></td>
                     <td><small>@t.CreatedAt.ToString("MMM dd, yyyy")</small></td>
                     <td><HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small" OnClick="@(() => DeleteAsync(t))" /></td>
