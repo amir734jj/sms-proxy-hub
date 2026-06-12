@@ -31,7 +31,7 @@ namespace SmsProxyHub.Client
         /// Optionally include a payload that gets echoed back on webhook reply.
         /// </summary>
         public async Task<SendSmsResponse> SendSmsAsync(
-            Guid? connectionId, string phoneNumber, string message, string payload = null,
+            Guid? connectionId, string phoneNumber, string message, object payload = null,
             CancellationToken ct = default)
         {
             var request = new SendSmsRequest
@@ -39,7 +39,7 @@ namespace SmsProxyHub.Client
                 ConnectionId = connectionId,
                 PhoneNumber = phoneNumber,
                 Message = message,
-                Payload = payload
+                Payload = payload is string s ? s : payload != null ? JsonConvert.SerializeObject(payload, JsonSettings) : null
             };
 
             var json = JsonConvert.SerializeObject(request, JsonSettings);

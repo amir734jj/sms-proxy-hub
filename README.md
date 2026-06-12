@@ -36,7 +36,7 @@ var response = await smsClient.SendSmsAsync(
     connectionId: null, // null = try all connections by priority
     phoneNumber: "+15551234567",
     message: "Hello!",
-    payload: "{\"clinicId\":\"abc\",\"patientId\":123}");
+    payload: new { clinicId = "abc", patientId = 123 });
 ```
 
 ## Webhook callbacks
