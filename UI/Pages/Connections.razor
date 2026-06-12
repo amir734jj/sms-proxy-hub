@@ -1,0 +1,149 @@
+@page "/connections"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IHxMessageBoxService MessageBox
+
+<PageTitle>Connections – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0">SMS Connections</h4>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+@if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+<HxCard CssClass="mb-4">
+    <HeaderTemplate><strong>Add Connection</strong></HeaderTemplate>
+    <BodyTemplate>
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" @bind="_newName" placeholder="My SmsGate" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Provider</label>
+                <select class="form-select" @bind="_newProvider">
+                    <option value="smsgate">SmsGate</option>
+                    <option value="twilio">Twilio</option>
+                </select>
+            </div>
+            @if (_newProvider == "smsgate")
+            {
+                <div class="col-md-2">
+                    <label class="form-label">Base URL</label>
+                    <input type="text" class="form-control" @bind="_sgBaseUrl" placeholder="https://..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" @bind="_sgUsername" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" @bind="_sgPassword" />
+                </div>
+            }
+            else
+            {
+                <div class="col-md-2">
+                    <label class="form-label">Account SID</label>
+                    <input type="text" class="form-control" @bind="_twAccountSid" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Auth Token</label>
+                    <input type="password" class="form-control" @bind="_twAuthToken" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From Number</label>
+                    <input type="text" class="form-control" @bind="_twFromNumber" placeholder="+1..." />
+                </div>
+            }
+            <div class="col-md-1 d-flex align-items-end">
+                <HxButton Text="Create" Color="ThemeColor.Primary" OnClick="CreateAsync" CssClass="w-100" />
+            </div>
+        </div>
+    </BodyTemplate>
+</HxCard>
+
+@if (_connections.Count == 0 && !_loading)
+{
+    <p class="text-muted">No connections. Create one above.</p>
+}
+else
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var c in _connections)
+        {
+            <HxCard>
+                <BodyTemplate>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">@c.Name</div>
+                            <div class="d-flex gap-2 mt-1">
+                                <span class="badge bg-info">@c.ProviderType</span>
+                                <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
+                                <small class="text-muted">Webhook URL: <code>/api/provider-webhook/@c.Id</code></small>
+                            </div>
+                        </div>
+                        <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small"
+                                  OnClick="@(() => DeleteAsync(c))" />
+                    </div>
+                </BodyTemplate>
+            </HxCard>
+        }
+    </div>
+}
+
+@code {
+    List<SmsConnectionDto> _connections = [];
+    bool _loading;
+    string? _error, _success;
+    string _newName = "", _newProvider = "smsgate";
+    string _sgBaseUrl = "", _sgUsername = "", _sgPassword = "";
+    string _twAccountSid = "", _twAuthToken = "", _twFromNumber = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try { _connections = await Api.GetConnectionsAsync(); }
+        catch (Exception ex) { _error = $"Failed to load: {ex.Message}"; }
+        finally { _loading = false; }
+    }
+
+    async Task CreateAsync()
+    {
+        _error = null; _success = null;
+        if (string.IsNullOrWhiteSpace(_newName)) { _error = "Name is required."; return; }
+
+        SmsConnectionConfig config = _newProvider switch
+        {
+            "smsgate" => new SmsGateConnectionConfig { BaseUrl = _sgBaseUrl, Username = _sgUsername, Password = _sgPassword },
+            "twilio" => new TwilioConnectionConfig { AccountSid = _twAccountSid, AuthToken = _twAuthToken, FromNumber = _twFromNumber },
+            _ => throw new InvalidOperationException()
+        };
+
+        try
+        {
+            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config));
+            _newName = ""; _sgBaseUrl = ""; _sgUsername = ""; _sgPassword = "";
+            _twAccountSid = ""; _twAuthToken = ""; _twFromNumber = "";
+            _success = "Connection created.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task DeleteAsync(SmsConnectionDto c)
+    {
+        if (!await MessageBox.ConfirmAsync("Delete Connection", $"Delete '{c.Name}'?")) return;
+        try { await Api.DeleteConnectionAsync(c.Id); _success = "Deleted."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+}

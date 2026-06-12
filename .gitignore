@@ -1,0 +1,27 @@
+# Build outputs
+bin/
+obj/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# NuGet
+nupkg/
+*.nupkg
+
+# Docker
+docker-compose.override.yml
+
+# Publish
+publish/

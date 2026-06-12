@@ -1,0 +1,76 @@
+@page "/send-sms"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Send SMS – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<h4 class="mb-4">Send SMS</h4>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+@if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+<HxCard>
+    <BodyTemplate>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Connection</label>
+                <select class="form-select" @bind="_connectionId">
+                    <option value="">Select a connection</option>
+                    @foreach (var c in _connections)
+                    {
+                        <option value="@c.Id">@c.Name (@c.ProviderType)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Phone Number</label>
+                <input type="text" class="form-control" @bind="_phone" placeholder="+1234567890" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Payload (optional JSON)</label>
+                <input type="text" class="form-control" @bind="_payload" placeholder='{"clinicId":"..."}' />
+            </div>
+            <div class="col-12">
+                <label class="form-label">Message</label>
+                <textarea class="form-control" @bind="_message" rows="3" placeholder="Enter your message"></textarea>
+            </div>
+            <div class="col-12">
+                <HxButton Text="Send" Color="ThemeColor.Primary" OnClick="SendAsync" Enabled="@(!_busy)" />
+            </div>
+        </div>
+    </BodyTemplate>
+</HxCard>
+
+@code {
+    List<SmsConnectionDto> _connections = [];
+    string _connectionId = "", _phone = "", _message = "", _payload = "";
+    string? _error, _success;
+    bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _connections = await Api.GetConnectionsAsync(); }
+        catch (Exception ex) { _error = $"Failed to load connections: {ex.Message}"; }
+    }
+
+    async Task SendAsync()
+    {
+        _error = null; _success = null;
+        if (!Guid.TryParse(_connectionId, out var connId)) { _error = "Select a connection."; return; }
+        if (string.IsNullOrWhiteSpace(_phone) || string.IsNullOrWhiteSpace(_message)) { _error = "Phone and message are required."; return; }
+
+        _busy = true;
+        try
+        {
+            var result = await Api.SendSmsAsync(new SendSmsRequest(connId, _phone, _message,
+                string.IsNullOrWhiteSpace(_payload) ? null : _payload));
+            _success = $"SMS {result.Status}. Message ID: {result.MessageId ?? "N/A"}";
+            _phone = ""; _message = ""; _payload = "";
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+        finally { _busy = false; }
+    }
+}

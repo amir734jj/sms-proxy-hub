@@ -1,0 +1,73 @@
+@page "/profile"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Profile – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div style="max-width: 500px;">
+    <h4 class="mb-4">Profile</h4>
+
+    @if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+    @if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+    <HxCard CssClass="mb-4">
+        <HeaderTemplate><strong>Display Name</strong></HeaderTemplate>
+        <BodyTemplate>
+            <HxInputText Label="Name" @bind-Value="_displayName" />
+            <HxButton Text="Save" Color="ThemeColor.Primary" CssClass="mt-2" OnClick="SaveProfileAsync" />
+        </BodyTemplate>
+    </HxCard>
+
+    <HxCard>
+        <HeaderTemplate><strong>Change Password</strong></HeaderTemplate>
+        <BodyTemplate>
+            <HxInputText Label="Current Password" @bind-Value="_currentPw" Type="InputType.Password" />
+            <HxInputText Label="New Password" @bind-Value="_newPw" Type="InputType.Password" />
+            <HxInputText Label="Confirm New Password" @bind-Value="_confirmPw" Type="InputType.Password" />
+            <HxButton Text="Change Password" Color="ThemeColor.Primary" CssClass="mt-2" OnClick="ChangePasswordAsync" />
+        </BodyTemplate>
+    </HxCard>
+</div>
+
+@code {
+    string _displayName = "";
+    string _currentPw = "", _newPw = "", _confirmPw = "";
+    string? _error, _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var me = await Api.GetProfileAsync();
+            _displayName = me.DisplayName ?? "";
+        }
+        catch { }
+    }
+
+    async Task SaveProfileAsync()
+    {
+        _error = null; _success = null;
+        try
+        {
+            await Api.UpdateProfileAsync(string.IsNullOrWhiteSpace(_displayName) ? null : _displayName.Trim());
+            _success = "Profile updated.";
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task ChangePasswordAsync()
+    {
+        _error = null; _success = null;
+        if (_newPw != _confirmPw) { _error = "Passwords do not match."; return; }
+        try
+        {
+            await Api.ChangePasswordAsync(_currentPw, _newPw, _confirmPw);
+            _success = "Password changed.";
+            _currentPw = ""; _newPw = ""; _confirmPw = "";
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+}

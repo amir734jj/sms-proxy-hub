@@ -1,0 +1,120 @@
+@page "/webhooks"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IHxMessageBoxService MessageBox
+
+<PageTitle>Webhooks – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0">Webhook Subscriptions</h4>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+@if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+<HxCard CssClass="mb-4">
+    <HeaderTemplate><strong>Add Webhook</strong></HeaderTemplate>
+    <BodyTemplate>
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label">Connection</label>
+                <select class="form-select" @bind="_newConnectionId">
+                    <option value="">Select</option>
+                    @foreach (var c in _connections)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Webhook URL</label>
+                <input type="text" class="form-control" @bind="_newUrl" placeholder="https://your-app.com/webhook" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Secret (optional)</label>
+                <input type="text" class="form-control" @bind="_newSecret" placeholder="HMAC signing secret" />
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <HxButton Text="Add" Color="ThemeColor.Primary" OnClick="CreateAsync" CssClass="w-100" />
+            </div>
+        </div>
+        <small class="text-muted mt-1 d-block">When a reply is received, the original payload you sent will be echoed back to this URL.</small>
+    </BodyTemplate>
+</HxCard>
+
+@if (_webhooks.Count == 0 && !_loading)
+{
+    <p class="text-muted">No webhook subscriptions.</p>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var w in _webhooks)
+        {
+            <HxCard>
+                <BodyTemplate>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <code>@w.Url</code>
+                            <small class="text-muted ms-2">Connection: @w.ConnectionId</small>
+                        </div>
+                        <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small"
+                                  OnClick="@(() => DeleteAsync(w))" />
+                    </div>
+                </BodyTemplate>
+            </HxCard>
+        }
+    </div>
+}
+
+@code {
+    List<WebhookSubscriptionDto> _webhooks = [];
+    List<SmsConnectionDto> _connections = [];
+    bool _loading;
+    string? _error, _success;
+    string _newConnectionId = "", _newUrl = "", _newSecret = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        try { _connections = await Api.GetConnectionsAsync(); } catch { }
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try { _webhooks = await Api.GetWebhooksAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+        finally { _loading = false; }
+    }
+
+    async Task CreateAsync()
+    {
+        _error = null; _success = null;
+        if (!Guid.TryParse(_newConnectionId, out var connId)) { _error = "Select a connection."; return; }
+        if (string.IsNullOrWhiteSpace(_newUrl)) { _error = "URL is required."; return; }
+
+        try
+        {
+            await Api.CreateWebhookAsync(new CreateWebhookRequest(connId, _newUrl.Trim(),
+                string.IsNullOrWhiteSpace(_newSecret) ? null : _newSecret.Trim()));
+            _newUrl = ""; _newSecret = ""; _newConnectionId = "";
+            _success = "Webhook added.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task DeleteAsync(WebhookSubscriptionDto w)
+    {
+        if (!await MessageBox.ConfirmAsync("Delete Webhook", $"Delete webhook to {w.Url}?")) return;
+        try { await Api.DeleteWebhookAsync(w.Id); _success = "Deleted."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+}

@@ -1,0 +1,108 @@
+@page "/api-tokens"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IHxMessageBoxService MessageBox
+
+<PageTitle>API Tokens – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0">API Tokens</h4>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+@if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+<HxCard CssClass="mb-4">
+    <HeaderTemplate><strong>Create Token</strong></HeaderTemplate>
+    <BodyTemplate>
+        <div class="row g-2">
+            <div class="col-md-8">
+                <label class="form-label">Token Name</label>
+                <input type="text" class="form-control" @bind="_newName" placeholder="e.g. xldent-production" />
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <HxButton Text="Create" Color="ThemeColor.Primary" OnClick="CreateAsync" CssClass="w-100" />
+            </div>
+        </div>
+        <small class="text-muted">Use this token as <code>Authorization: Bearer &lt;token&gt;</code> for API access.</small>
+    </BodyTemplate>
+</HxCard>
+
+@if (_newToken is not null)
+{
+    <HxAlert Color="ThemeColor.Warning" CssClass="mb-3">
+        <strong>New token created — copy it now, it won't be shown again:</strong><br />
+        <code>@_newToken</code>
+    </HxAlert>
+}
+
+@if (_tokens.Count == 0 && !_loading)
+{
+    <p class="text-muted">No API tokens.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr><th>Name</th><th>Token</th><th>Status</th><th>Created</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var t in _tokens)
+            {
+                <tr>
+                    <td>@t.Name</td>
+                    <td><code>@t.Token[..8]…</code></td>
+                    <td><span class="badge @(t.IsActive ? "bg-success" : "bg-secondary")">@(t.IsActive ? "Active" : "Inactive")</span></td>
+                    <td><small>@t.CreatedAt.ToString("MMM dd, yyyy")</small></td>
+                    <td><HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small" OnClick="@(() => DeleteAsync(t))" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<ApiTokenDto> _tokens = [];
+    bool _loading;
+    string? _error, _success, _newToken;
+    string _newName = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try { _tokens = await Api.GetApiTokensAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+        finally { _loading = false; }
+    }
+
+    async Task CreateAsync()
+    {
+        _error = null; _success = null; _newToken = null;
+        if (string.IsNullOrWhiteSpace(_newName)) { _error = "Name is required."; return; }
+
+        try
+        {
+            var result = await Api.CreateApiTokenAsync(_newName.Trim());
+            _newToken = result.Token;
+            _newName = "";
+            _success = "Token created.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task DeleteAsync(ApiTokenDto t)
+    {
+        if (!await MessageBox.ConfirmAsync("Delete Token", $"Delete token '{t.Name}'?")) return;
+        try { await Api.DeleteApiTokenAsync(t.Id); _success = "Deleted."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+}

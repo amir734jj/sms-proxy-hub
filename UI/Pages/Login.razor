@@ -1,0 +1,40 @@
+@page "/login"
+@inject ApiService Api
+@inject NavigationManager Nav
+
+<div style="max-width: 360px; margin: 4rem auto;">
+    <HxCard>
+        <HeaderTemplate><strong>SMS Proxy Hub Login</strong></HeaderTemplate>
+        <BodyTemplate>
+            <HxInputText Label="Email" @bind-Value="_email" Type="InputType.Email" />
+            <HxInputText Label="Password" @bind-Value="_password" Type="InputType.Password" />
+
+            @if (_error is not null)
+            {
+                <HxAlert Color="ThemeColor.Danger" CssClass="mt-2">@_error</HxAlert>
+            }
+
+            <div class="d-flex align-items-center gap-3 mt-3">
+                <HxButton Text="Login" Color="ThemeColor.Primary" OnClick="Submit" Enabled="@(!_busy)" />
+                <a href="/register">Create account</a>
+            </div>
+        </BodyTemplate>
+    </HxCard>
+</div>
+
+@code {
+    string _email = "", _password = "";
+    string? _error;
+    bool _busy;
+
+    async Task Submit()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            _error = await Api.LoginAsync(_email, _password);
+            if (_error is null) Nav.NavigateTo("/");
+        }
+        finally { _busy = false; }
+    }
+}

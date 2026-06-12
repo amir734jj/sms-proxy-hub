@@ -1,0 +1,83 @@
+@page "/admin/users"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IHxMessageBoxService MessageBox
+
+<PageTitle>User Management – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated || !Auth.IsAdmin) { Nav.NavigateTo("/"); return; }
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0">User Management</h4>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+@if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
+
+<table class="table table-sm">
+    <thead>
+        <tr><th>Email</th><th>Status</th><th>Role</th><th>Last Login</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var u in _users)
+        {
+            <tr>
+                <td>@u.Email</td>
+                <td><span class="badge @(u.IsActive ? "bg-success" : "bg-warning")">@(u.IsActive ? "Active" : "Pending")</span></td>
+                <td>@string.Join(", ", u.Roles)</td>
+                <td><small>@(u.LastLoginAt?.ToString("MMM dd HH:mm") ?? "Never")</small></td>
+                <td>
+                    @if (u.Id != Auth.UserId)
+                    {
+                        @if (!u.IsActive)
+                        {
+                            <HxButton Text="Activate" Color="ThemeColor.Success" Size="ButtonSize.Small" OnClick="@(() => ActivateAsync(u))" CssClass="me-1" />
+                        }
+                        else
+                        {
+                            <HxButton Text="Deactivate" Color="ThemeColor.Warning" Size="ButtonSize.Small" OnClick="@(() => DeactivateAsync(u))" CssClass="me-1" />
+                        }
+                        <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small" OnClick="@(() => DeleteAsync(u))" />
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    List<UserDto> _users = [];
+    string? _error, _success;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        _error = null;
+        try { _users = await Api.GetUsersAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task ActivateAsync(UserDto u)
+    {
+        try { await Api.ActivateUserAsync(u.Id); _success = $"{u.Email} activated."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task DeactivateAsync(UserDto u)
+    {
+        try { await Api.DeactivateUserAsync(u.Id); _success = $"{u.Email} deactivated."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task DeleteAsync(UserDto u)
+    {
+        if (!await MessageBox.ConfirmAsync("Delete User", $"Delete {u.Email}?")) return;
+        try { await Api.DeleteUserAsync(u.Id); _success = "Deleted."; await LoadAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+}

@@ -1,0 +1,74 @@
+@page "/messages"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Messages – SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0">Message History</h4>
+    <div class="ms-auto">
+        <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+
+@if (_messages.Count == 0 && !_loading)
+{
+    <p class="text-muted">No messages sent yet.</p>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>To</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Provider ID</th>
+                <th>Payload</th>
+                <th>Sent At</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in _messages)
+            {
+                <tr>
+                    <td>@m.To</td>
+                    <td class="text-truncate" style="max-width:250px" title="@m.Message">@m.Message</td>
+                    <td><span class="badge @StatusBadge(m.Status)">@m.Status</span></td>
+                    <td><small>@(m.ProviderMessageId ?? "—")</small></td>
+                    <td><small class="text-muted">@(m.Payload ?? "—")</small></td>
+                    <td><small>@m.CreatedAt.ToString("MMM dd HH:mm")</small></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<SmsMessageDto> _messages = [];
+    bool _loading;
+    string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try { _messages = await Api.GetMessagesAsync(); }
+        catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+        finally { _loading = false; }
+    }
+
+    static string StatusBadge(SmsMessageStatus s) => s switch
+    {
+        SmsMessageStatus.Sent => "bg-success",
+        SmsMessageStatus.Failed => "bg-danger",
+        SmsMessageStatus.ReplyReceived => "bg-info",
+        _ => "bg-secondary"
+    };
+}
