@@ -12,6 +12,7 @@ public sealed class MessageService(
     IEfRepository repository,
     IConnectionService connectionService,
     ISmsProviderFactory providerFactory,
+    IWebhookService webhookService,
     ILogger<MessageService> logger) : IMessageService
 {
     private IBasicCrud<SmsMessage> Dal => repository.For<SmsMessage>();
@@ -89,6 +90,17 @@ public sealed class MessageService(
             Payload = payload,
             Status = messageId is not null ? SmsMessageStatus.Sent : SmsMessageStatus.Failed
         });
+
+        if (messageId is not null)
+        {
+            await webhookService.DeliverToAllAsync(connection.Id, WebhookEventType.SmsSent,
+                normalizedPhone, message, payload);
+        }
+        else
+        {
+            await webhookService.DeliverToAllAsync(connection.Id, WebhookEventType.SmsFailed,
+                normalizedPhone, message, payload, reason: "Provider returned no message ID");
+        }
 
         return (messageId, messageId is not null);
     }

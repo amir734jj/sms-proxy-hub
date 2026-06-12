@@ -8,7 +8,7 @@ using Shared.Contracts;
 
 namespace Api.Services;
 
-public sealed class ConnectionService(IEfRepository repository, SmsGateProvider smsGateProvider) : IConnectionService
+public sealed class ConnectionService(IEfRepository repository, SmsGateProvider smsGateProvider, TwilioProvider twilioProvider) : IConnectionService
 {
     private IBasicCrud<SmsConnection> Dal => repository.For<SmsConnection>();
 
@@ -39,6 +39,8 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
 
         if (request.Config is SmsGateConnectionConfig smsGateConfig)
             await smsGateProvider.RegisterWebhookAsync(smsGateConfig, entity.Id);
+        else if (request.Config is TwilioConnectionConfig twilioConfig)
+            await twilioProvider.RegisterWebhookAsync(twilioConfig, entity.Id);
 
         return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.CreatedAt);
     }
@@ -58,6 +60,8 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
 
         if (request.Config is SmsGateConnectionConfig smsGateConfig)
             await smsGateProvider.RegisterWebhookAsync(smsGateConfig, id);
+        else if (request.Config is TwilioConnectionConfig twilioConfig)
+            await twilioProvider.RegisterWebhookAsync(twilioConfig, id);
 
         return true;
     }

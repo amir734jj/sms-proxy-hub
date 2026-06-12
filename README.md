@@ -41,15 +41,25 @@ var response = await smsClient.SendSmsAsync(
 
 ## Webhook callbacks
 
-When someone replies to an SMS, sms-proxy-hub forwards the reply to all webhook subscriptions registered for that connection. Your app receives a POST like:
+sms-proxy-hub sends webhook POSTs to your registered URLs on these events:
+
+| Event | When | Fields |
+|-------|------|--------|
+| `SmsSent` | SMS accepted by provider | `phone`, `message`, `originalPayload` |
+| `SmsFailed` | Provider rejected the SMS | `phone`, `message`, `originalPayload`, `reason` |
+| `SmsReply` | Someone replied to an SMS you sent | `phone`, `message`, `originalPayload` |
+
+Payload format:
 
 ```json
 {
-  "fromPhone": "+15551234567",
+  "event": "SmsReply",
+  "phone": "+15551234567",
   "message": "Yes, confirmed",
   "originalPayload": "{\"clinicId\":\"abc\",\"patientId\":123}",
   "connectionId": "a1b2c3d4-...",
-  "receivedAt": "2026-06-12T20:30:00Z"
+  "reason": null,
+  "timestamp": "2026-06-12T20:30:00Z"
 }
 ```
 
@@ -70,7 +80,11 @@ sms-proxy-hub finds the most recent outbound SMS to the replying phone number on
 
 ### Webhook auto-registration
 
-When you create a SmsGate connection, sms-proxy-hub automatically registers a device-specific webhook with the SMS Gate server. No manual `curl` needed — just create the connection in the UI and it's ready.
+When you create a connection, sms-proxy-hub automatically registers the webhook with the provider:
+- **SmsGate** — registers a device-specific `sms:received` webhook via the API
+- **Twilio** — updates the phone number's `SmsUrl` to point to the proxy
+
+No manual setup needed — just create the connection in the UI and it's ready.
 
 ## Docker
 

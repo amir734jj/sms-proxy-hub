@@ -4,12 +4,15 @@ using Newtonsoft.Json;
 namespace SmsProxyHub.Client
 {
     /// <summary>
-    /// Payload delivered to the consumer's webhook when an SMS reply is received.
+    /// Payload delivered to the consumer's webhook on SMS events.
     /// </summary>
     public sealed class WebhookCallbackPayload
     {
-        [JsonProperty("fromPhone")]
-        public string FromPhone { get; set; }
+        [JsonProperty("event")]
+        public string Event { get; set; }
+
+        [JsonProperty("phone")]
+        public string Phone { get; set; }
 
         [JsonProperty("message")]
         public string Message { get; set; }
@@ -20,8 +23,11 @@ namespace SmsProxyHub.Client
         [JsonProperty("connectionId")]
         public Guid ConnectionId { get; set; }
 
-        [JsonProperty("receivedAt")]
-        public DateTimeOffset ReceivedAt { get; set; }
+        [JsonProperty("reason")]
+        public string Reason { get; set; }
+
+        [JsonProperty("timestamp")]
+        public DateTimeOffset Timestamp { get; set; }
     }
 
     public sealed class SendSmsRequest

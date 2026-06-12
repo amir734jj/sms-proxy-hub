@@ -56,12 +56,8 @@ public sealed class ProviderWebhookController(
         string? originalPayload = originalMessage?.Payload;
 
         // Forward to all active webhook subscriptions for this connection
-        var subscriptions = await webhookService.GetActiveForConnectionAsync(connectionId);
-        foreach (var sub in subscriptions)
-        {
-            await webhookService.DeliverWebhookAsync(
-                sub, normalizedPhone, incoming.Message, originalPayload, connectionId);
-        }
+        await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsReply,
+            normalizedPhone, incoming.Message, originalPayload);
 
         // Mark reply received after successful delivery
         if (originalMessage is not null)

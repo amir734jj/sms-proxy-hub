@@ -71,17 +71,29 @@ public sealed class WebhookService(
         )).ToList();
     }
 
+    public async Task DeliverToAllAsync(Guid connectionId, WebhookEventType eventType,
+        string phone, string? message, string? originalPayload, string? reason = null)
+    {
+        var subscriptions = await GetActiveForConnectionAsync(connectionId);
+        foreach (var sub in subscriptions)
+        {
+            await DeliverWebhookAsync(sub, eventType, phone, message, originalPayload, connectionId, reason);
+        }
+    }
+
     public async Task DeliverWebhookAsync(
-        WebhookSubscription subscription, string fromPhone, string message,
-        string? originalPayload, Guid connectionId)
+        WebhookSubscription subscription, WebhookEventType eventType,
+        string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null)
     {
         var callbackPayload = new
         {
-            fromPhone,
+            @event = eventType.ToString(),
+            phone,
             message,
             originalPayload,
             connectionId,
-            receivedAt = DateTimeOffset.UtcNow
+            reason,
+            timestamp = DateTimeOffset.UtcNow
         };
 
         var json = JsonConvert.SerializeObject(callbackPayload);

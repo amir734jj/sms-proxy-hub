@@ -2,11 +2,12 @@ using Api.Interfaces;
 using Shared.Contracts;
 using Twilio.Clients;
 using Twilio.Rest.Api.V2010.Account;
+using Twilio.Rest.Api.V2010.Account.IncomingPhoneNumber;
 using Twilio.Types;
 
 namespace Api.Providers;
 
-public sealed class TwilioProvider(ILogger<TwilioProvider> logger) : ISmsProvider
+public sealed class TwilioProvider(IConfiguration configuration, ILogger<TwilioProvider> logger) : ISmsProvider
 {
     public SmsProviderType ProviderType => SmsProviderType.Twilio;
 
@@ -53,5 +54,45 @@ public sealed class TwilioProvider(ILogger<TwilioProvider> logger) : ISmsProvide
             return Task.FromResult<IncomingSms?>(null);
 
         return Task.FromResult<IncomingSms?>(new IncomingSms(from, body, messageSid));
+    }
+
+    public async Task RegisterWebhookAsync(TwilioConnectionConfig config, Guid connectionId)
+    {
+        var publicUrl = configuration["App:PublicUrl"];
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            logger.LogWarning("App:PublicUrl not configured, skipping Twilio webhook registration");
+            return;
+        }
+
+        try
+        {
+            var client = new TwilioRestClient(config.AccountSid, config.AuthToken);
+            var webhookUrl = new Uri($"{publicUrl.TrimEnd('/')}/api/provider-webhook/{connectionId}");
+
+            // Find the phone number resource
+            var numbers = await IncomingPhoneNumberResource.ReadAsync(
+                phoneNumber: new PhoneNumber(config.FromNumber),
+                client: client);
+
+            var number = numbers.FirstOrDefault();
+            if (number is null)
+            {
+                logger.LogWarning("Twilio phone number {Number} not found in account", config.FromNumber);
+                return;
+            }
+
+            await IncomingPhoneNumberResource.UpdateAsync(
+                number.Sid,
+                smsUrl: webhookUrl,
+                smsMethod: Twilio.Http.HttpMethod.Post,
+                client: client);
+
+            logger.LogInformation("Twilio webhook registered for {Number} -> {Url}", config.FromNumber, webhookUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to register Twilio webhook for connection {ConnectionId}", connectionId);
+        }
     }
 }

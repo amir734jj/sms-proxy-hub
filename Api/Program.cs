@@ -131,7 +131,8 @@ builder.Services.AddControllers().AddNewtonsoftJson();
 // Register SMS providers
 builder.Services.AddSingleton<SmsGateProvider>();
 builder.Services.AddSingleton<ISmsProvider>(sp => sp.GetRequiredService<SmsGateProvider>());
-builder.Services.AddSingleton<ISmsProvider, TwilioProvider>();
+builder.Services.AddSingleton<TwilioProvider>();
+builder.Services.AddSingleton<ISmsProvider>(sp => sp.GetRequiredService<TwilioProvider>());
 builder.Services.AddSingleton<ISmsProviderFactory, SmsProviderFactory>();
 
 // Auto-register services via Scrutor
