@@ -1,21 +1,23 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SmsProxyHub.Client;
-
-public static class ServiceCollectionExtensions
+namespace SmsProxyHub.Client
 {
-    /// <summary>
-    /// Register <see cref="SmsProxyHubClient"/> with the DI container.
-    /// </summary>
-    public static IServiceCollection AddSmsProxyHub(
-        this IServiceCollection services, string baseUrl, string apiToken)
+    public static class ServiceCollectionExtensions
     {
-        services.AddHttpClient<SmsProxyHubClient>(client =>
+        /// <summary>
+        /// Register <see cref="SmsProxyHubClient"/> with the DI container.
+        /// </summary>
+        public static IServiceCollection AddSmsProxyHub(
+            this IServiceCollection services, string baseUrl, string apiToken)
         {
-            client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
-            client.Timeout = TimeSpan.FromSeconds(30);
-        }).AddTypedClient((httpClient, _) => new SmsProxyHubClient(httpClient, apiToken));
+            services.AddHttpClient<SmsProxyHubClient>(client =>
+            {
+                client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
+                client.Timeout = TimeSpan.FromSeconds(30);
+            }).AddTypedClient((httpClient, _) => new SmsProxyHubClient(httpClient, apiToken));
 
-        return services;
+            return services;
+        }
     }
 }
