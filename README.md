@@ -66,17 +66,6 @@ Payload format:
 }
 ```
 
-If a webhook secret is configured, the request includes HMAC-SHA256 signature headers:
-- `X-Signature` -- hex-encoded HMAC of `body + timestamp`
-- `X-Timestamp` -- unix timestamp (seconds)
-
-Verify in your app:
-```csharp
-var expected = HMACSHA256(Encoding.UTF8.GetBytes(secret))
-    .ComputeHash(Encoding.UTF8.GetBytes(body + timestamp));
-// compare hex-encoded expected with X-Signature header
-```
-
 ### How replies are matched
 
 sms-proxy-hub finds the most recent outbound SMS to the replying phone number on the same connection that hasn't been replied to yet. The `originalPayload` from that message is echoed back. After matching, the outbound message is marked as replied so subsequent replies match older messages.

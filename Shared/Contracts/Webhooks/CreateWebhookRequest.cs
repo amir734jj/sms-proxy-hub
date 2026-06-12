@@ -1,3 +1,3 @@
 namespace Shared.Contracts;
 
-public record CreateWebhookRequest(Guid ConnectionId, string Url, string? Secret);
+public record CreateWebhookRequest(Guid ConnectionId, string Url);

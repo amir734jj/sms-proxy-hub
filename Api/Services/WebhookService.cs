@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using Api.Data.Entities;
 using Api.Interfaces;
@@ -41,8 +40,7 @@ public sealed class WebhookService(
         var entity = await Dal.Save(new WebhookSubscription
         {
             ConnectionId = request.ConnectionId,
-            Url = request.Url.Trim(),
-            Secret = request.Secret
+            Url = request.Url.Trim()
         });
 
         return new WebhookSubscriptionDto(entity.Id, entity.ConnectionId, entity.Url, entity.IsActive, entity.CreatedAt);
@@ -103,16 +101,6 @@ public sealed class WebhookService(
             var httpClient = httpClientFactory.CreateClient();
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             using var request = new HttpRequestMessage(HttpMethod.Post, subscription.Url) { Content = content };
-
-            // Sign with HMAC if secret is configured
-            if (!string.IsNullOrWhiteSpace(subscription.Secret))
-            {
-                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-                using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(subscription.Secret));
-                var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(json + timestamp));
-                request.Headers.Add("X-Signature", Convert.ToHexStringLower(hash));
-                request.Headers.Add("X-Timestamp", timestamp);
-            }
 
             var response = await httpClient.SendAsync(request);
             logger.LogInformation("Webhook delivered to {Url}, status {Status}",

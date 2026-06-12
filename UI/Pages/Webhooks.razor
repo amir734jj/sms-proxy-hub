@@ -32,13 +32,9 @@
                     }
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-8">
                 <label class="form-label">Webhook URL</label>
                 <input type="text" class="form-control" @bind="_newUrl" placeholder="https://your-app.com/webhook" />
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Secret (optional)</label>
-                <input type="text" class="form-control" @bind="_newSecret" placeholder="HMAC signing secret" />
             </div>
             <div class="col-md-1 d-flex align-items-end">
                 <HxButton Text="Add" Color="ThemeColor.Primary" OnClick="CreateAsync" CssClass="w-100" />
@@ -78,7 +74,7 @@ else
     List<SmsConnectionDto> _connections = [];
     bool _loading;
     string? _error, _success;
-    string _newConnectionId = "", _newUrl = "", _newSecret = "";
+    string _newConnectionId = "", _newUrl = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -102,9 +98,8 @@ else
 
         try
         {
-            await Api.CreateWebhookAsync(new CreateWebhookRequest(connId, _newUrl.Trim(),
-                string.IsNullOrWhiteSpace(_newSecret) ? null : _newSecret.Trim()));
-            _newUrl = ""; _newSecret = ""; _newConnectionId = "";
+            await Api.CreateWebhookAsync(new CreateWebhookRequest(connId, _newUrl.Trim()));
+            _newUrl = ""; _newConnectionId = "";
             _success = "Webhook added.";
             await LoadAsync();
         }
