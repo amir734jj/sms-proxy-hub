@@ -30,10 +30,13 @@ Include an optional `payload` (any JSON string) when sending. When the recipient
 ## Client NuGet usage
 
 ```csharp
-services.AddSmsProxyHub("https://sms-proxy-hub.example.com", "your-api-token");
+// Create per-request from IHttpClientFactory (token can change at runtime)
+var httpClient = httpClientFactory.CreateClient();
+httpClient.BaseAddress = new Uri("https://sms-proxy-hub.example.com");
+var client = new SmsProxyHubClient(httpClient, apiToken);
 
-var response = await smsClient.SendSmsAsync(
-    connectionId: null, // null = try all connections by priority
+var response = await client.SendSmsAsync(
+    connectionId: Guid.Parse("..."),
     phoneNumber: "+15551234567",
     message: "Hello!",
     payload: new { clinicId = "abc", patientId = 123 });
