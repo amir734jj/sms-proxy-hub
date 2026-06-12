@@ -13,4 +13,5 @@ public interface IWebhookService
         string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null);
     Task DeliverToAllAsync(Guid connectionId, WebhookEventType eventType,
         string phone, string? message, string? originalPayload, string? reason = null);
+    Task<List<WebhookDeliveryDto>> GetDeliveriesForUserAsync(Guid userId, int limit = 50);
 }

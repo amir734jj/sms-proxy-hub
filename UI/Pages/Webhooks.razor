@@ -69,8 +69,45 @@ else
     </div>
 }
 
+<h5 class="mt-4 mb-3">Delivery History</h5>
+
+@if (_deliveries.Count == 0)
+{
+    <p class="text-muted">No webhook deliveries yet.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr><th>Event</th><th>URL</th><th>Status</th><th>Error</th><th>Time</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var d in _deliveries)
+            {
+                <tr>
+                    <td><span class="badge bg-info">@d.Event</span></td>
+                    <td><code class="text-truncate" style="max-width:250px; display:block" title="@d.Url">@d.Url</code></td>
+                    <td>
+                        @if (d.Success)
+                        {
+                            <span class="badge bg-success">@d.HttpStatus</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">@(d.HttpStatus?.ToString() ?? "Failed")</span>
+                        }
+                    </td>
+                    <td><small class="text-muted">@(d.Error ?? "-")</small></td>
+                    <td><small>@d.CreatedAt.ToString("MMM dd HH:mm:ss")</small></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 @code {
     List<WebhookSubscriptionDto> _webhooks = [];
+    List<WebhookDeliveryDto> _deliveries = [];
     List<SmsConnectionDto> _connections = [];
     bool _loading;
     string? _error, _success;
@@ -85,7 +122,11 @@ else
     async Task LoadAsync()
     {
         _loading = true; _error = null;
-        try { _webhooks = await Api.GetWebhooksAsync(); }
+        try
+        {
+            _webhooks = await Api.GetWebhooksAsync();
+            _deliveries = await Api.GetWebhookDeliveriesAsync();
+        }
         catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
         finally { _loading = false; }
     }

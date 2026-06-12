@@ -11,6 +11,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<SmsConnection> SmsConnections => Set<SmsConnection>();
     public DbSet<SmsMessage> SmsMessages => Set<SmsMessage>();
     public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)

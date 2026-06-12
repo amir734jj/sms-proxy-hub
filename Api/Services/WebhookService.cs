@@ -95,6 +95,14 @@ public sealed class WebhookService(
         };
 
         var json = JsonConvert.SerializeObject(callbackPayload);
+        var delivery = new WebhookDelivery
+        {
+            WebhookSubscriptionId = subscription.Id,
+            ConnectionId = connectionId,
+            Event = eventType.ToString(),
+            Url = subscription.Url,
+            RequestBody = json
+        };
 
         try
         {
@@ -103,12 +111,44 @@ public sealed class WebhookService(
             using var request = new HttpRequestMessage(HttpMethod.Post, subscription.Url) { Content = content };
 
             var response = await httpClient.SendAsync(request);
+            delivery.HttpStatus = (int)response.StatusCode;
+            delivery.Success = response.IsSuccessStatusCode;
+
             logger.LogInformation("Webhook delivered to {Url}, status {Status}",
                 subscription.Url, response.StatusCode);
         }
         catch (Exception ex)
         {
+            delivery.Success = false;
+            delivery.Error = ex.Message;
             logger.LogWarning(ex, "Failed to deliver webhook to {Url}", subscription.Url);
         }
+
+        try { await repository.For<WebhookDelivery>().Save(delivery); }
+        catch (Exception ex) { logger.LogError(ex, "Failed to save webhook delivery log"); }
+    }
+
+    public async Task<List<WebhookDeliveryDto>> GetDeliveriesForUserAsync(Guid userId, int limit = 50)
+    {
+        var connections = await connectionService.GetAllForUserAsync(userId);
+        var connectionIds = connections.Select(c => c.Id).ToList();
+        if (connectionIds.Count == 0) return [];
+
+        return (await repository.For<WebhookDelivery>().GetAll(
+            filterExprs: [d => connectionIds.Contains(d.ConnectionId)],
+            orderByDesc: d => d.CreatedAt,
+            maxResults: limit,
+            project: d => new WebhookDeliveryDto
+            {
+                Id = d.Id,
+                ConnectionId = d.ConnectionId,
+                Event = d.Event,
+                Url = d.Url,
+                HttpStatus = d.HttpStatus,
+                Success = d.Success,
+                Error = d.Error,
+                CreatedAt = d.CreatedAt
+            }
+        )).ToList();
     }
 }

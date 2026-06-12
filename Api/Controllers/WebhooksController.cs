@@ -46,4 +46,10 @@ public sealed class WebhooksController(IWebhookService webhookService) : Control
         var deleted = await webhookService.DeleteAsync(User.GetUserId(), id);
         return deleted ? NoContent() : NotFound();
     }
+
+    [HttpGet("deliveries")]
+    public async Task<IActionResult> GetDeliveries([FromQuery] int limit = 50)
+    {
+        return Ok(await webhookService.GetDeliveriesForUserAsync(User.GetUserId(), limit));
+    }
 }

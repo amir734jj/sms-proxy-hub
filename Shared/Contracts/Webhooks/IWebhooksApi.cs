@@ -15,4 +15,8 @@ public interface IWebhooksApi
     [Delete("/api/webhooks/{id}")]
     [Headers("Authorization: Bearer")]
     Task DeleteAsync(Guid id);
+
+    [Get("/api/webhooks/deliveries")]
+    [Headers("Authorization: Bearer")]
+    Task<List<WebhookDeliveryDto>> GetDeliveriesAsync([Query] int limit = 50);
 }

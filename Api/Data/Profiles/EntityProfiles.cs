@@ -22,3 +22,8 @@ public class ApiTokenProfile : EntityProfile<ApiToken>
 {
     public ApiTokenProfile() { MapAll(); }
 }
+
+public class WebhookDeliveryProfile : EntityProfile<WebhookDelivery>
+{
+    public WebhookDeliveryProfile() { MapAll(); }
+}
