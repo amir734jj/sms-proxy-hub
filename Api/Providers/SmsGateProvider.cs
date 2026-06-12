@@ -8,7 +8,7 @@ using Message = Api.Generated.SmsGate.Message;
 
 namespace Api.Providers;
 
-public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogger<SmsGateProvider> logger) : ISmsProvider
+public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<SmsGateProvider> logger) : ISmsProvider
 {
     public SmsProviderType ProviderType => SmsProviderType.SmsGate;
 
@@ -104,7 +104,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, ILogge
             var client = await CreateAuthenticatedClientAsync(config, includeWebhookScope: true);
             if (client is null) return;
 
-            var webhookUrl = $"https://sms-proxy-hub.coolify.hesamian.com/api/provider-webhook/{connectionId}";
+            var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
             var webhookId = $"sms-proxy-hub-{connectionId}";
 
             await client.WebhooksPOSTAsync(new Webhook
