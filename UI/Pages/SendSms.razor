@@ -34,8 +34,8 @@
                 <textarea class="form-control font-monospace" @bind="_payload" rows="3" placeholder='{"clinicId":"..."}'></textarea>
             </div>
             <div class="col-12">
-                <label class="form-label">Message</label>
-                <textarea class="form-control" @bind="_message" rows="3" placeholder="Enter your message"></textarea>
+                <label class="form-label">Message <small class="text-muted">(@_message.Length / 1600)</small></label>
+                <textarea class="form-control" @bind="_message" rows="3" maxlength="1600" placeholder="Enter your message"></textarea>
             </div>
             <div class="col-12">
                 <HxButton Text="Send" Color="ThemeColor.Primary" OnClick="SendAsync" Enabled="@(!_busy)" />
@@ -61,6 +61,7 @@
         _error = null; _success = null;
         Guid? connId = Guid.TryParse(_connectionId, out var parsed) ? parsed : null;
         if (string.IsNullOrWhiteSpace(_phone) || string.IsNullOrWhiteSpace(_message)) { _error = "Phone and message are required."; return; }
+        if (_message.Length > 1600) { _error = "Message too long (max 1600 characters)."; return; }
 
         _busy = true;
         try

@@ -19,6 +19,9 @@ public sealed class MessagesController(
         if (string.IsNullOrWhiteSpace(req.PhoneNumber) || string.IsNullOrWhiteSpace(req.Message))
             return BadRequest("Phone number and message are required.");
 
+        if (req.Message.Length > 1600)
+            return BadRequest("Message too long (max 1600 characters).");
+
         var userId = User.GetUserId();
 
         // If a specific connection is requested, verify ownership
