@@ -1,1 +1,20 @@
 /* Basic app styles */
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    background: lightyellow;
+    border-top: 1px solid #d6d600;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
