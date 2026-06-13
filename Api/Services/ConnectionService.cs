@@ -1,16 +1,14 @@
-using Api.Data;
 using Api.Data.Entities;
 using Api.Interfaces;
 using Api.Providers;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Shared.Contracts;
 
 namespace Api.Services;
 
-public sealed class ConnectionService(IEfRepository repository, AppDbContext db, SmsGateProvider smsGateProvider, TwilioProvider twilioProvider) : IConnectionService
+public sealed class ConnectionService(IEfRepository repository, SmsGateProvider smsGateProvider, TwilioProvider twilioProvider) : IConnectionService
 {
     private IBasicCrud<SmsConnection> Dal => repository.For<SmsConnection>();
 
@@ -102,19 +100,20 @@ public sealed class ConnectionService(IEfRepository repository, AppDbContext db,
 
     public async Task<bool> ReorderAsync(Guid userId, List<Guid> orderedIds)
     {
-        var all = await db.SmsConnections
-            .Where(c => c.UserId == userId)
-            .ToListAsync();
+        var all = (await Dal.GetAll(
+            filterExprs: [c => c.UserId == userId]
+        )).ToList();
 
         if (all.Count != orderedIds.Count || !orderedIds.All(id => all.Any(c => c.Id == id)))
             return false;
 
-        foreach (var conn in all)
-        {
-            conn.Priority = orderedIds.IndexOf(conn.Id);
-        }
+        // Build a lookup so each connection gets its new priority
+        var priorityMap = orderedIds.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
 
-        await db.SaveChangesAsync();
+        await Dal.BulkUpdate(
+            orderedIds.ToArray(),
+            c => c.Priority = priorityMap[c.Id]);
+
         return true;
     }
 }
