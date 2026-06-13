@@ -1,8 +1,7 @@
-using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
-namespace SmsProxyHub.Client
+namespace SmsProxyHub.Contracts
 {
     [JsonConverter(typeof(StringEnumConverter))]
     public enum WebhookEventType
@@ -13,9 +12,6 @@ namespace SmsProxyHub.Client
         SmsReply
     }
 
-    /// <summary>
-    /// Payload delivered to the consumer's webhook on SMS events.
-    /// </summary>
     public sealed class WebhookCallbackPayload
     {
         [JsonProperty("event")]
@@ -31,19 +27,19 @@ namespace SmsProxyHub.Client
         public string OriginalPayload { get; set; }
 
         [JsonProperty("connectionId")]
-        public Guid ConnectionId { get; set; }
+        public System.Guid ConnectionId { get; set; }
 
         [JsonProperty("reason")]
         public string Reason { get; set; }
 
         [JsonProperty("timestamp")]
-        public DateTimeOffset Timestamp { get; set; }
+        public System.DateTimeOffset Timestamp { get; set; }
     }
 
     public sealed class SendSmsRequest
     {
         [JsonProperty("connectionId")]
-        public Guid? ConnectionId { get; set; }
+        public System.Guid? ConnectionId { get; set; }
 
         [JsonProperty("phoneNumbers")]
         public string[] PhoneNumbers { get; set; }
@@ -64,7 +60,7 @@ namespace SmsProxyHub.Client
         public string Status { get; set; }
 
         [JsonProperty("usedConnectionId")]
-        public Guid? UsedConnectionId { get; set; }
+        public System.Guid? UsedConnectionId { get; set; }
     }
 
     public sealed class BulkSendSmsResponse

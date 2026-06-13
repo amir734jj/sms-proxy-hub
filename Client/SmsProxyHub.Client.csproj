@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <PackageId>SmsProxyHub.Client</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Authors>amir734jj</Authors>
     <Description>Client SDK for SmsProxyHub - send SMS through multiple providers with webhook support.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <ProjectReference Include="..\Contracts\SmsProxyHub.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

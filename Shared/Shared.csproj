@@ -13,4 +13,8 @@
     <PackageReference Include="Refit" Version="11.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\SmsProxyHub.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

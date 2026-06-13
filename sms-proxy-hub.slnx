@@ -6,6 +6,7 @@
   </Configurations>
   <Project Path="Api/Api.csproj" />
   <Project Path="Client/SmsProxyHub.Client.csproj" />
+  <Project Path="Contracts/SmsProxyHub.Contracts.csproj" />
   <Project Path="Migrations/Migrations.csproj" />
   <Project Path="Shared/Shared.csproj" />
   <Project Path="UI/UI.csproj" />
