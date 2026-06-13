@@ -48,4 +48,11 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
         var devices = await smsGateProvider.GetDevicesAsync(config);
         return Ok(devices.Select(d => new SmsGateDeviceDto(d.Id ?? "", d.Name ?? "", d.LastSeen)));
     }
+
+    [HttpPost("reorder")]
+    public async Task<IActionResult> Reorder([FromBody] List<Guid> orderedIds)
+    {
+        var reordered = await connectionService.ReorderAsync(User.GetUserId(), orderedIds);
+        return reordered ? Ok() : BadRequest("Invalid connection IDs.");
+    }
 }

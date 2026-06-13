@@ -28,13 +28,17 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
 
     public async Task<SmsConnectionDto> CreateAsync(Guid userId, CreateConnectionRequest request)
     {
+        // Auto-assign priority: newest gets highest (tried last)
+        var existing = await GetAllForUserAsync(userId);
+        var nextPriority = existing.Count > 0 ? existing.Max(c => c.Priority) + 1 : 0;
+
         var entity = await Dal.Save(new SmsConnection
         {
             UserId = userId,
             Name = request.Name.Trim(),
             ProviderType = request.Config.Type,
             ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings),
-            Priority = request.Priority
+            Priority = nextPriority
         });
 
         if (request.Config is SmsGateConnectionConfig smsGateConfig)
@@ -92,5 +96,23 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
             filterExprs: [c => c.UserId == userId && c.IsActive],
             orderBy: c => c.Priority
         )).ToList();
+    }
+
+    public async Task<bool> ReorderAsync(Guid userId, List<Guid> orderedIds)
+    {
+        var all = (await Dal.GetAll(
+            filterExprs: [c => c.UserId == userId]
+        )).ToList();
+
+        if (all.Count != orderedIds.Count || !orderedIds.All(id => all.Any(c => c.Id == id)))
+            return false;
+
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            var id = orderedIds[i];
+            await Dal.Update(id, c => c.Priority = i);
+        }
+
+        return true;
     }
 }

@@ -33,10 +33,6 @@
                     <option value="@SmsProviderType.Twilio">Twilio</option>
                 </select>
             </div>
-            <div class="col-md-1">
-                <label class="form-label">Priority</label>
-                <input type="number" class="form-control" @bind="_newPriority" min="0" title="Lower number = tried first" />
-            </div>
             @if (_newProvider == SmsProviderType.SmsGate)
             {
                 <SmsGateConfigForm @ref="_smsGateForm" OnError="e => { _error = e; StateHasChanged(); }" />
@@ -64,6 +60,12 @@ else
             <HxCard>
                 <BodyTemplate>
                     <div class="d-flex align-items-center">
+                        <div class="d-flex flex-column me-2">
+                            <button class="btn btn-sm btn-outline-secondary py-0 mb-1" @onclick="@(() => MoveAsync(c, -1))"
+                                    disabled="@(_connections.IndexOf(c) == 0)" title="Move up (higher priority)">&#9650;</button>
+                            <button class="btn btn-sm btn-outline-secondary py-0" @onclick="@(() => MoveAsync(c, 1))"
+                                    disabled="@(_connections.IndexOf(c) == _connections.Count - 1)" title="Move down (lower priority)">&#9660;</button>
+                        </div>
                         <div class="flex-grow-1">
                             <div class="fw-semibold">@c.Name</div>
                             <div class="d-flex gap-2 mt-1">
@@ -88,7 +90,6 @@ else
     string? _error, _success;
     string _newName = "";
     SmsProviderType _newProvider = SmsProviderType.SmsGate;
-    int _newPriority;
     SmsGateConfigForm? _smsGateForm;
     TwilioConfigForm? _twilioForm;
 
@@ -116,8 +117,8 @@ else
 
         try
         {
-            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config, _newPriority));
-            _newName = ""; _newPriority = 0;
+            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config));
+            _newName = "";
             _smsGateForm?.Reset();
             _twilioForm?.Reset();
             _success = "Connection created.";
@@ -131,5 +132,21 @@ else
         if (!await MessageBox.ConfirmAsync("Delete Connection", $"Delete '{c.Name}'?")) return;
         try { await Api.DeleteConnectionAsync(c.Id); _success = "Deleted."; await LoadAsync(); }
         catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task MoveAsync(SmsConnectionDto c, int direction)
+    {
+        var idx = _connections.IndexOf(c);
+        var newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= _connections.Count) return;
+
+        (_connections[idx], _connections[newIdx]) = (_connections[newIdx], _connections[idx]);
+
+        try
+        {
+            await Api.ReorderConnectionsAsync(_connections.Select(x => x.Id).ToList());
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = $"Reorder failed: {ex.Message}"; }
     }
 }

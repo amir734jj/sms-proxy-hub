@@ -11,4 +11,5 @@ public interface IConnectionService
     Task<Data.Entities.SmsConnection?> GetByIdAsync(Guid id);
     Task<bool> UserOwnsConnectionAsync(Guid userId, Guid connectionId);
     Task<List<Data.Entities.SmsConnection>> GetActiveForUserInPriorityOrderAsync(Guid userId);
+    Task<bool> ReorderAsync(Guid userId, List<Guid> orderedIds);
 }

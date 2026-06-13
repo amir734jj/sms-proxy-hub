@@ -23,4 +23,8 @@ public interface IConnectionsApi
     [Post("/api/connections/smsgate-devices")]
     [Headers("Authorization: Bearer")]
     Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync([Body] SmsGateConnectionConfig config);
+
+    [Post("/api/connections/reorder")]
+    [Headers("Authorization: Bearer")]
+    Task ReorderAsync([Body] List<Guid> orderedIds);
 }
