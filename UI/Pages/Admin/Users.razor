@@ -18,6 +18,7 @@
 @if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
 @if (_success is not null) { <HxAlert Color="ThemeColor.Success" CssClass="mb-3">@_success</HxAlert> }
 
+<div class="table-responsive">
 <table class="table table-sm">
     <thead>
         <tr><th>Email</th><th>Status</th><th>Role</th><th>Last Login</th><th></th></tr>
@@ -48,6 +49,7 @@
         }
     </tbody>
 </table>
+</div>
 
 @code {
     List<UserDto> _users = [];
