@@ -16,27 +16,38 @@ public sealed class MessagesController(
     [HttpPost("send")]
     public async Task<IActionResult> Send([FromBody] SendSmsRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.PhoneNumber) || string.IsNullOrWhiteSpace(req.Message))
-            return BadRequest("Phone number and message are required.");
+        if (req.PhoneNumbers is null || req.PhoneNumbers.Length == 0 || string.IsNullOrWhiteSpace(req.Message))
+            return BadRequest("Phone numbers and message are required.");
 
         if (req.Message.Length > 1600)
             return BadRequest("Message too long (max 1600 characters).");
 
         var userId = User.GetUserId();
 
-        // If a specific connection is requested, verify ownership
         if (req.ConnectionId is not null &&
             !await connectionService.UserOwnsConnectionAsync(userId, req.ConnectionId.Value))
         {
             return NotFound("Connection not found.");
         }
 
-        var (messageId, success, usedConnectionId) = await messageService.SendAsync(
-            userId, req.ConnectionId, req.PhoneNumber, req.Message, req.Payload);
+        var results = new List<SendSmsResponse>();
+        foreach (var phone in req.PhoneNumbers)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                results.Add(new SendSmsResponse(null, "failed"));
+                continue;
+            }
 
-        return success
-            ? Ok(new SendSmsResponse(messageId, "sent", usedConnectionId))
-            : StatusCode(502, new SendSmsResponse(null, "failed"));
+            var (messageId, success, usedConnectionId) = await messageService.SendAsync(
+                userId, req.ConnectionId, phone, req.Message, req.Payload);
+
+            results.Add(success
+                ? new SendSmsResponse(messageId, "sent", usedConnectionId)
+                : new SendSmsResponse(null, "failed"));
+        }
+
+        return Ok(new BulkSendSmsResponse(results));
     }
 
     [HttpGet]

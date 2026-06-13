@@ -27,26 +27,26 @@ namespace SmsProxyHub.Client
         }
 
         /// <summary>
-        /// Send an SMS. Payload gets echoed back on webhook reply.
+        /// Send an SMS to one or more phone numbers.
         /// </summary>
-        public Task<SendSmsResponse> SendSmsAsync(
-            Guid? connectionId, string phoneNumber, string message,
+        public Task<BulkSendSmsResponse> SendSmsAsync(
+            Guid? connectionId, string[] phoneNumbers, string message,
             CancellationToken ct = default)
         {
-            return SendSmsAsync<object>(connectionId, phoneNumber, message, null, ct);
+            return SendSmsAsync<object>(connectionId, phoneNumbers, message, null, ct);
         }
 
         /// <summary>
-        /// Send an SMS with a typed payload that gets serialized and echoed back on webhook reply.
+        /// Send an SMS to one or more phone numbers with a typed payload.
         /// </summary>
-        public async Task<SendSmsResponse> SendSmsAsync<T>(
-            Guid? connectionId, string phoneNumber, string message, T payload = default,
+        public async Task<BulkSendSmsResponse> SendSmsAsync<T>(
+            Guid? connectionId, string[] phoneNumbers, string message, T payload = default,
             CancellationToken ct = default)
         {
             var request = new SendSmsRequest
             {
                 ConnectionId = connectionId,
-                PhoneNumber = phoneNumber,
+                PhoneNumbers = phoneNumbers,
                 Message = message,
                 Payload = payload != null ? JsonConvert.SerializeObject(payload, JsonSettings) : null
             };
@@ -60,7 +60,7 @@ namespace SmsProxyHub.Client
                 response.EnsureSuccessStatusCode();
 
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                return JsonConvert.DeserializeObject<SendSmsResponse>(body);
+                return JsonConvert.DeserializeObject<BulkSendSmsResponse>(body);
             }
         }
     }

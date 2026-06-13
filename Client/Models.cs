@@ -32,22 +32,15 @@ namespace SmsProxyHub.Client
 
     public sealed class SendSmsRequest
     {
-        /// <summary>
-        /// Optional. If null, tries all active connections in priority order (failover).
-        /// </summary>
         [JsonProperty("connectionId")]
         public Guid? ConnectionId { get; set; }
 
-        [JsonProperty("phoneNumber")]
-        public string PhoneNumber { get; set; }
+        [JsonProperty("phoneNumbers")]
+        public string[] PhoneNumbers { get; set; }
 
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        /// <summary>
-        /// Optional payload that will be echoed back in the webhook callback when a reply is received.
-        /// Can be any object - it gets serialized to JSON automatically.
-        /// </summary>
         [JsonProperty("payload")]
         public object Payload { get; set; }
     }
@@ -62,5 +55,11 @@ namespace SmsProxyHub.Client
 
         [JsonProperty("usedConnectionId")]
         public Guid? UsedConnectionId { get; set; }
+    }
+
+    public sealed class BulkSendSmsResponse
+    {
+        [JsonProperty("results")]
+        public SendSmsResponse[] Results { get; set; }
     }
 }

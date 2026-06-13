@@ -6,7 +6,7 @@ public interface IMessagesApi
 {
     [Post("/api/messages/send")]
     [Headers("Authorization: Bearer")]
-    Task<SendSmsResponse> SendAsync([Body] SendSmsRequest request);
+    Task<BulkSendSmsResponse> SendAsync([Body] SendSmsRequest request);
 
     [Get("/api/messages")]
     [Headers("Authorization: Bearer")]

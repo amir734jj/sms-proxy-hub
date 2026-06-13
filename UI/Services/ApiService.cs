@@ -79,7 +79,7 @@ public sealed class ApiService(
     public Task ReorderConnectionsAsync(List<Guid> orderedIds) => connectionsApi.ReorderAsync(orderedIds);
 
     // Messages
-    public Task<SendSmsResponse> SendSmsAsync(SendSmsRequest req) => messagesApi.SendAsync(req);
+    public Task<BulkSendSmsResponse> SendSmsAsync(SendSmsRequest req) => messagesApi.SendAsync(req);
     public Task<List<SmsMessageDto>> GetMessagesAsync() => messagesApi.GetAllAsync();
     public Task<List<SmsMessageDto>> GetMessagesByConnectionAsync(Guid connId) => messagesApi.GetByConnectionAsync(connId);
     public Task<UsageStatsDto> GetUsageAsync(int days = 30) => messagesApi.GetUsageAsync(days);
