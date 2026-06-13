@@ -7,7 +7,7 @@ Multi-provider SMS proxy with webhook callbacks. Send SMS through [SmsGate](http
 - **Api** - ASP.NET Core backend, PostgreSQL, FluentMigrator, JWT + API token auth
 - **UI** - Blazor WASM frontend with Havit Bootstrap
 - **Shared** - DTOs, Refit interfaces, phone normalization
-- **Client** - NuGet package (`SmsProxyHub.Client`) for consuming apps
+- **Client** - [NuGet package](https://www.nuget.org/packages/SmsProxyHub.Client) (`SmsProxyHub.Client`) for consuming apps
 - **Migrations** - FluentMigrator migrations
 
 ## Providers
