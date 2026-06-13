@@ -147,7 +147,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
 
             // check token cache
             if (!includeWebhookScope && TokenCache.TryGetValue(cacheKey, out var cached)
-                && cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(2))
+                && cached.ExpiresAt > DateTimeOffset.UtcNow)
             {
                 httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", cached.Token);
@@ -182,8 +182,10 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             if (!includeWebhookScope)
             {
                 var expiresAt = tokenResponse.Expires_at ?? DateTimeOffset.UtcNow.AddMinutes(50);
-                TokenCache[cacheKey] = (tokenResponse.Access_token, expiresAt);
-                logger.LogInformation("SmsGate token cached for {Key}, expires {ExpiresAt}", cacheKey, expiresAt);
+                // use token for 2/3 of its lifetime, then refresh
+                var lifetime = expiresAt - DateTimeOffset.UtcNow;
+                var cacheUntil = DateTimeOffset.UtcNow + (lifetime * 2 / 3);
+                TokenCache[cacheKey] = (tokenResponse.Access_token, cacheUntil);
             }
 
             return client;
