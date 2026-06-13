@@ -104,7 +104,7 @@ else
                         }
                     </td>
                     <td><small class="text-muted">@(d.Error ?? "-")</small></td>
-                    <td><small>@d.CreatedAt.ToString("MMM dd HH:mm:ss")</small></td>
+                    <td><small>@d.CreatedAt.LocalDateTime.ToString("MMM dd HH:mm:ss")</small></td>
                     <td><HxButton Text="Replay" Color="ThemeColor.Warning" Size="ButtonSize.Small" OnClick="@(() => ReplayAsync(d.Id))" /></td>
                 </tr>
             }

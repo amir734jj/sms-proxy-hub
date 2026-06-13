@@ -43,7 +43,7 @@ else
                     <td class="text-truncate" style="max-width:250px" title="@m.Message">@m.Message</td>
                     <td><span class="badge @StatusBadge(m.Status)">@m.Status</span></td>
                     <td><small class="text-muted font-monospace" style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block" title="@FormatPayload(m.Payload)">@FormatPayload(m.Payload)</small></td>
-                    <td><small>@m.CreatedAt.ToString("MMM dd HH:mm")</small></td>
+                    <td><small>@m.CreatedAt.LocalDateTime.ToString("MMM dd HH:mm")</small></td>
                 </tr>
             }
         </tbody>

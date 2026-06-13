@@ -30,7 +30,7 @@
                 <td>@u.Email</td>
                 <td><span class="badge @(u.IsActive ? "bg-success" : "bg-warning")">@(u.IsActive ? "Active" : "Pending")</span></td>
                 <td>@string.Join(", ", u.Roles)</td>
-                <td><small>@(u.LastLoginAt?.ToString("MMM dd HH:mm") ?? "Never")</small></td>
+                <td><small>@(u.LastLoginAt?.LocalDateTime.ToString("MMM dd HH:mm") ?? "Never")</small></td>
                 <td>
                     @if (u.Id != Auth.UserId)
                     {
