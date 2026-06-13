@@ -74,7 +74,7 @@ Use `WebhookCallbackPayload` from the NuGet package to deserialize this in your 
 [HttpPost("sms/webhook")]
 public IActionResult SmsWebhook([FromBody] WebhookCallbackPayload payload)
 {
-    if (payload.Event == "SmsReply")
+    if (payload.Event == WebhookEventType.SmsReply)
     {
         // payload.Phone, payload.Message, payload.OriginalPayload
     }

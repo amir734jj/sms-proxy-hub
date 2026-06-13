@@ -1,15 +1,25 @@
 using System;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace SmsProxyHub.Client
 {
+    [JsonConverter(typeof(StringEnumConverter))]
+    public enum WebhookEventType
+    {
+        SmsSent,
+        SmsFailed,
+        SmsDelivered,
+        SmsReply
+    }
+
     /// <summary>
     /// Payload delivered to the consumer's webhook on SMS events.
     /// </summary>
     public sealed class WebhookCallbackPayload
     {
         [JsonProperty("event")]
-        public string Event { get; set; }
+        public WebhookEventType Event { get; set; }
 
         [JsonProperty("phone")]
         public string Phone { get; set; }
