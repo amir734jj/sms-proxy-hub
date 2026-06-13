@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 using Api.Generated.SmsGate;
@@ -10,6 +11,9 @@ namespace Api.Providers;
 
 public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<SmsGateProvider> logger) : ISmsProvider
 {
+    private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresAt)> TokenCache = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SendThrottles = new();
+    private static readonly TimeSpan ThrottleDelay = TimeSpan.FromMilliseconds(500);
     public SmsProviderType ProviderType => SmsProviderType.SmsGate;
 
     public async Task<string?> SendAsync(string to, string message, SmsConnectionConfig config)
@@ -19,6 +23,11 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             logger.LogError("Invalid config type for SmsGate provider");
             return null;
         }
+
+        // throttle per base URL to avoid overwhelming the SMS Gate server
+        var throttleKey = smsGate.BaseUrl;
+        var throttle = SendThrottles.GetOrAdd(throttleKey, _ => new SemaphoreSlim(1, 1));
+        await throttle.WaitAsync();
 
         try
         {
@@ -44,6 +53,12 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         {
             logger.LogError(ex, "SmsGate send failed");
             return null;
+        }
+        finally
+        {
+            // delay before allowing the next send to the same server
+            await Task.Delay(ThrottleDelay);
+            throttle.Release();
         }
     }
 
@@ -127,7 +142,18 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
     {
         try
         {
+            var cacheKey = $"{config.BaseUrl}|{config.Username}";
             var httpClient = httpClientFactory.CreateClient();
+
+            // check token cache
+            if (!includeWebhookScope && TokenCache.TryGetValue(cacheKey, out var cached)
+                && cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(2))
+            {
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", cached.Token);
+                return new SmsGateClient(httpClient) { BaseUrl = config.BaseUrl.TrimEnd('/') + "/api" };
+            }
+
             var credentials = Convert.ToBase64String(
                 Encoding.UTF8.GetBytes($"{config.Username}:{config.Password}"));
             httpClient.DefaultRequestHeaders.Authorization =
@@ -149,9 +175,16 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
                 Scopes = scopes
             });
 
-            // Switch to Bearer auth with the new token
             httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", tokenResponse.Access_token);
+
+            // cache the token (not for webhook-scoped tokens since those are one-off)
+            if (!includeWebhookScope)
+            {
+                var expiresAt = tokenResponse.Expires_at ?? DateTimeOffset.UtcNow.AddMinutes(50);
+                TokenCache[cacheKey] = (tokenResponse.Access_token, expiresAt);
+                logger.LogInformation("SmsGate token cached for {Key}, expires {ExpiresAt}", cacheKey, expiresAt);
+            }
 
             return client;
         }
