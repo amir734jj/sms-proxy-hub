@@ -37,9 +37,11 @@ var client = new SmsProxyHubClient(httpClient, apiToken);
 
 var response = await client.SendSmsAsync(
     connectionId: Guid.Parse("..."),
-    phoneNumber: "+15551234567",
+    phoneNumbers: new[] { "+15551234567", "+15559876543" },
     message: "Hello!",
     payload: new { clinicId = "abc", patientId = 123 });
+
+// response.Results has one SendSmsResponse per phone number
 ```
 
 ## Webhook callbacks
