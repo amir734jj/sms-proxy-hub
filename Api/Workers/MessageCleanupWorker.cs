@@ -78,11 +78,8 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
             }
         }
 
-        // delete old messages
-        foreach (var msg in oldMessages)
-        {
-            await messageDal.Delete(msg.Id);
-        }
+        // delete old messages in bulk
+        await messageDal.DeleteMany(oldMessages.Select(m => m.Id).ToArray());
 
         logger.LogInformation("Cleaned up {Count} messages older than {Days} days", oldMessages.Count, RetentionDays);
     }
