@@ -1,6 +1,7 @@
-using Api.Data;
 using Api.Data.Entities;
-using Microsoft.EntityFrameworkCore;
+using Api.Interfaces;
+using EfCoreRepository.Interfaces;
+using EfCoreRepository.Extensions;
 using Shared.Contracts;
 
 namespace Api.Workers;
@@ -12,7 +13,6 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // wait for app to fully start
         await Task.Delay(TimeSpan.FromMinutes(1), ct);
 
         while (!ct.IsCancellationRequested)
@@ -33,34 +33,41 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
     private async Task RollupAndCleanAsync(CancellationToken ct)
     {
         using var scope = serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var repo = scope.ServiceProvider.GetRequiredService<IEfRepository>();
+        var messageDal = repo.For<SmsMessage>();
+        var statsDal = repo.For<DailyStats>();
 
         var cutoff = DateTimeOffset.UtcNow.AddDays(-RetentionDays);
 
-        // get old messages grouped by connection + date
-        var oldMessages = await db.SmsMessages
-            .Where(m => m.CreatedAt < cutoff)
-            .ToListAsync(ct);
+        var oldMessages = (await messageDal.GetAll(
+            filterExprs: [m => m.CreatedAt < cutoff]
+        )).ToList();
 
         if (oldMessages.Count == 0) return;
 
+        // roll up into daily stats
         var groups = oldMessages
             .GroupBy(m => (m.ConnectionId, Date: DateOnly.FromDateTime(m.CreatedAt.UtcDateTime)));
 
         foreach (var group in groups)
         {
-            var existing = await db.Set<DailyStats>()
-                .FirstOrDefaultAsync(s => s.ConnectionId == group.Key.ConnectionId && s.Date == group.Key.Date, ct);
+            var existing = (await statsDal.GetAll(
+                filterExprs: [s => s.ConnectionId == group.Key.ConnectionId && s.Date == group.Key.Date],
+                maxResults: 1
+            )).FirstOrDefault();
 
             if (existing is not null)
             {
-                existing.Sent += group.Count(m => m.Status == SmsMessageStatus.Sent);
-                existing.Failed += group.Count(m => m.Status == SmsMessageStatus.Failed);
-                existing.Replies += group.Count(m => m.Status == SmsMessageStatus.ReplyReceived);
+                await statsDal.Update(existing.Id, s =>
+                {
+                    s.Sent += group.Count(m => m.Status == SmsMessageStatus.Sent);
+                    s.Failed += group.Count(m => m.Status == SmsMessageStatus.Failed);
+                    s.Replies += group.Count(m => m.Status == SmsMessageStatus.ReplyReceived);
+                });
             }
             else
             {
-                db.Set<DailyStats>().Add(new DailyStats
+                await statsDal.Save(new DailyStats
                 {
                     ConnectionId = group.Key.ConnectionId,
                     Date = group.Key.Date,
@@ -71,8 +78,11 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
             }
         }
 
-        db.SmsMessages.RemoveRange(oldMessages);
-        await db.SaveChangesAsync(ct);
+        // delete old messages
+        foreach (var msg in oldMessages)
+        {
+            await messageDal.Delete(msg.Id);
+        }
 
         logger.LogInformation("Cleaned up {Count} messages older than {Days} days", oldMessages.Count, RetentionDays);
     }

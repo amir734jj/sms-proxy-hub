@@ -1,9 +1,7 @@
-using Api.Data;
 using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Shared;
 using Shared.Contracts;
@@ -12,7 +10,6 @@ namespace Api.Services;
 
 public sealed class MessageService(
     IEfRepository repository,
-    AppDbContext db,
     IConnectionService connectionService,
     ISmsProviderFactory providerFactory,
     IWebhookService webhookService,
@@ -189,9 +186,9 @@ public sealed class MessageService(
         )).ToList();
 
         // Rolled-up daily stats (older messages that were cleaned up)
-        var rolledUp = await db.DailyStats
-            .Where(s => connectionIds.Contains(s.ConnectionId) && s.Date >= sinceDate)
-            .ToListAsync();
+        var rolledUp = (await repository.For<DailyStats>().GetAll(
+            filterExprs: [s => connectionIds.Contains(s.ConnectionId) && s.Date >= sinceDate]
+        )).ToList();
 
         // Combine by connection
         var byConnection = connections.Select(c =>
