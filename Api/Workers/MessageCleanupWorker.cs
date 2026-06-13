@@ -81,6 +81,16 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
         // delete old messages in bulk
         await messageDal.DeleteMany(oldMessages.Select(m => m.Id).ToArray());
 
-        logger.LogInformation("Cleaned up {Count} messages older than {Days} days", oldMessages.Count, RetentionDays);
+        // delete old webhook deliveries
+        var deliveryDal = repo.For<WebhookDelivery>();
+        var oldDeliveries = (await deliveryDal.GetAll(
+            filterExprs: [d => d.CreatedAt < cutoff]
+        )).ToList();
+
+        if (oldDeliveries.Count > 0)
+            await deliveryDal.DeleteMany(oldDeliveries.Select(d => d.Id).ToArray());
+
+        logger.LogInformation("Cleaned up {MsgCount} messages and {DelCount} webhook deliveries older than {Days} days",
+            oldMessages.Count, oldDeliveries.Count, RetentionDays);
     }
 }
