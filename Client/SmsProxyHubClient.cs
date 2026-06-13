@@ -44,6 +44,9 @@ namespace SmsProxyHub.Client
             Guid? connectionId, string[] phoneNumbers, string message, T payload = default,
             CancellationToken ct = default)
         {
+            if (message != null && message.Length > 160)
+                throw new ArgumentException("Message too long (max 160 characters).", nameof(message));
+
             var request = new SendSmsRequest
             {
                 ConnectionId = connectionId,
