@@ -35,19 +35,22 @@ public sealed class MessagesController(
         {
             if (string.IsNullOrWhiteSpace(phone))
             {
-                results.Add(new SendSmsResponse(null, "failed"));
+                results.Add(new SendSmsResponse { Status = "failed" });
                 continue;
             }
 
             var (messageId, success, usedConnectionId) = await messageService.SendAsync(
                 userId, req.ConnectionId, phone, req.Message, req.Payload);
 
-            results.Add(success
-                ? new SendSmsResponse(messageId, "sent", usedConnectionId)
-                : new SendSmsResponse(null, "failed"));
+            results.Add(new SendSmsResponse
+            {
+                MessageId = messageId,
+                Status = success ? "sent" : "failed",
+                UsedConnectionId = success ? usedConnectionId : null
+            });
         }
 
-        return Ok(new BulkSendSmsResponse(results));
+        return Ok(new BulkSendSmsResponse { Results = results.ToArray() });
     }
 
     [HttpGet]

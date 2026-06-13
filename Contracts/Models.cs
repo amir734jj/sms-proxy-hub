@@ -48,7 +48,7 @@ namespace SmsProxyHub.Contracts
         public string Message { get; set; }
 
         [JsonProperty("payload")]
-        public object Payload { get; set; }
+        public string Payload { get; set; }
     }
 
     public sealed class SendSmsResponse

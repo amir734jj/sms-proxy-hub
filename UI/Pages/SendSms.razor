@@ -66,8 +66,13 @@
         _busy = true;
         try
         {
-            var result = await Api.SendSmsAsync(new SendSmsRequest(connId, [_phone], _message,
-                string.IsNullOrWhiteSpace(_payload) ? null : _payload));
+            var result = await Api.SendSmsAsync(new SendSmsRequest
+            {
+                ConnectionId = connId,
+                PhoneNumbers = [_phone],
+                Message = _message,
+                Payload = string.IsNullOrWhiteSpace(_payload) ? null : _payload
+            });
             var first = result.Results.FirstOrDefault();
             _success = $"SMS {first?.Status ?? "unknown"}. Message ID: {first?.MessageId ?? "N/A"}";
             _phone = ""; _message = ""; _payload = "";

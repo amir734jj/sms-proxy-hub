@@ -1,6 +1,7 @@
 using Refit;
 using Shared.Contracts;
 using Shared.Contracts.Interfaces;
+using SmsProxyHub.Contracts;
 
 namespace UI.Services;
 
