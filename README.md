@@ -66,6 +66,20 @@ Payload format:
 }
 ```
 
+Use `WebhookCallbackPayload` from the NuGet package to deserialize this in your controller:
+
+```csharp
+[HttpPost("sms/webhook")]
+public IActionResult SmsWebhook([FromBody] WebhookCallbackPayload payload)
+{
+    if (payload.Event == "SmsReply")
+    {
+        // payload.Phone, payload.Message, payload.OriginalPayload
+    }
+    return Ok();
+}
+```
+
 ### How replies are matched
 
 sms-proxy-hub finds the most recent outbound SMS to the replying phone number on the same connection that hasn't been replied to yet. The `originalPayload` from that message is echoed back. After matching, the outbound message is marked as replied so subsequent replies match older messages.
