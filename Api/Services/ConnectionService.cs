@@ -1,14 +1,16 @@
+using Api.Data;
 using Api.Data.Entities;
 using Api.Interfaces;
 using Api.Providers;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Shared.Contracts;
 
 namespace Api.Services;
 
-public sealed class ConnectionService(IEfRepository repository, SmsGateProvider smsGateProvider, TwilioProvider twilioProvider) : IConnectionService
+public sealed class ConnectionService(IEfRepository repository, AppDbContext db, SmsGateProvider smsGateProvider, TwilioProvider twilioProvider) : IConnectionService
 {
     private IBasicCrud<SmsConnection> Dal => repository.For<SmsConnection>();
 
@@ -100,19 +102,19 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
 
     public async Task<bool> ReorderAsync(Guid userId, List<Guid> orderedIds)
     {
-        var all = (await Dal.GetAll(
-            filterExprs: [c => c.UserId == userId]
-        )).ToList();
+        var all = await db.SmsConnections
+            .Where(c => c.UserId == userId)
+            .ToListAsync();
 
         if (all.Count != orderedIds.Count || !orderedIds.All(id => all.Any(c => c.Id == id)))
             return false;
 
-        for (var i = 0; i < orderedIds.Count; i++)
+        foreach (var conn in all)
         {
-            var id = orderedIds[i];
-            await Dal.Update(id, c => c.Priority = i);
+            conn.Priority = orderedIds.IndexOf(conn.Id);
         }
 
+        await db.SaveChangesAsync();
         return true;
     }
 }
