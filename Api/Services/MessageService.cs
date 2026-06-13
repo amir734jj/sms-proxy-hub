@@ -1,7 +1,9 @@
+using Api.Data;
 using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Shared;
 using Shared.Contracts;
@@ -10,6 +12,7 @@ namespace Api.Services;
 
 public sealed class MessageService(
     IEfRepository repository,
+    AppDbContext db,
     IConnectionService connectionService,
     ISmsProviderFactory providerFactory,
     IWebhookService webhookService,
@@ -178,42 +181,60 @@ public sealed class MessageService(
         }
 
         var since = DateTimeOffset.UtcNow.AddDays(-days);
+        var sinceDate = DateOnly.FromDateTime(since.UtcDateTime);
 
+        // Live messages (recent, not yet rolled up)
         var messages = (await Dal.GetAll(
             filterExprs: [m => connectionIds.Contains(m.ConnectionId) && m.CreatedAt >= since]
         )).ToList();
 
+        // Rolled-up daily stats (older messages that were cleaned up)
+        var rolledUp = await db.DailyStats
+            .Where(s => connectionIds.Contains(s.ConnectionId) && s.Date >= sinceDate)
+            .ToListAsync();
+
+        // Combine by connection
         var byConnection = connections.Select(c =>
         {
             var connMessages = messages.Where(m => m.ConnectionId == c.Id).ToList();
+            var connStats = rolledUp.Where(s => s.ConnectionId == c.Id).ToList();
             return new ConnectionUsageDto
             {
                 ConnectionId = c.Id,
                 ConnectionName = c.Name,
                 ProviderType = c.ProviderType,
-                Sent = connMessages.Count(m => m.Status == SmsMessageStatus.Sent),
-                Failed = connMessages.Count(m => m.Status == SmsMessageStatus.Failed),
-                Replies = connMessages.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
+                Sent = connMessages.Count(m => m.Status == SmsMessageStatus.Sent) + connStats.Sum(s => s.Sent),
+                Failed = connMessages.Count(m => m.Status == SmsMessageStatus.Failed) + connStats.Sum(s => s.Failed),
+                Replies = connMessages.Count(m => m.Status == SmsMessageStatus.ReplyReceived) + connStats.Sum(s => s.Replies)
             };
         }).Where(c => c.Sent + c.Failed + c.Replies > 0).ToList();
 
-        var daily = messages
+        // Combine daily
+        var liveDaily = messages
             .GroupBy(m => DateOnly.FromDateTime(m.CreatedAt.UtcDateTime))
+            .Select(g => new { Date = g.Key, Sent = g.Count(m => m.Status == SmsMessageStatus.Sent), Failed = g.Count(m => m.Status == SmsMessageStatus.Failed), Replies = g.Count(m => m.Status == SmsMessageStatus.ReplyReceived) });
+
+        var rolledDaily = rolledUp
+            .GroupBy(s => s.Date)
+            .Select(g => new { Date = g.Key, Sent = g.Sum(s => s.Sent), Failed = g.Sum(s => s.Failed), Replies = g.Sum(s => s.Replies) });
+
+        var daily = liveDaily.Concat(rolledDaily)
+            .GroupBy(d => d.Date)
             .Select(g => new DailyUsageDto
             {
                 Date = g.Key,
-                Sent = g.Count(m => m.Status == SmsMessageStatus.Sent),
-                Failed = g.Count(m => m.Status == SmsMessageStatus.Failed),
-                Replies = g.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
+                Sent = g.Sum(x => x.Sent),
+                Failed = g.Sum(x => x.Failed),
+                Replies = g.Sum(x => x.Replies)
             })
             .OrderBy(d => d.Date)
             .ToList();
 
         return new UsageStatsDto
         {
-            TotalSent = messages.Count(m => m.Status == SmsMessageStatus.Sent),
-            TotalFailed = messages.Count(m => m.Status == SmsMessageStatus.Failed),
-            TotalReplies = messages.Count(m => m.Status == SmsMessageStatus.ReplyReceived),
+            TotalSent = byConnection.Sum(c => c.Sent),
+            TotalFailed = byConnection.Sum(c => c.Failed),
+            TotalReplies = byConnection.Sum(c => c.Replies),
             ByConnection = byConnection,
             Daily = daily
         };

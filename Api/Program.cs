@@ -144,6 +144,7 @@ builder.Services.Scan(scan => scan
     .WithScopedLifetime());
 
 builder.Services.AddHttpClient();
+builder.Services.AddHostedService<Api.Workers.MessageCleanupWorker>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(opt =>

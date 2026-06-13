@@ -27,3 +27,8 @@ public class WebhookDeliveryProfile : EntityProfile<WebhookDelivery>
 {
     public WebhookDeliveryProfile() { MapAll(); }
 }
+
+public class DailyStatsProfile : EntityProfile<DailyStats>
+{
+    public DailyStatsProfile() { MapAll(); }
+}
