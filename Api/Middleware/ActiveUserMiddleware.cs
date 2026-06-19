@@ -2,6 +2,7 @@ using Api.Data.Entities;
 using Api.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
+using Serilog.Context;
 
 namespace Api.Middleware;
 
@@ -20,20 +21,25 @@ public sealed class ActiveUserMiddleware(RequestDelegate next)
         var userId = context.User.GetUserId().ToString();
         var cacheKey = $"active_user:{userId}";
 
-        if (!cache.TryGetValue(cacheKey, out bool isActive))
+        if (!cache.TryGetValue(cacheKey, out CachedUser? cached) || cached is null)
         {
             var user = await userManager.FindByIdAsync(userId);
-            isActive = user is { IsActive: true };
-            cache.Set(cacheKey, isActive, CacheDuration);
+            cached = new CachedUser(user is { IsActive: true }, user?.UserName);
+            cache.Set(cacheKey, cached, CacheDuration);
         }
 
-        if (!isActive)
+        if (!cached.IsActive)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsJsonAsync(new { message = "Account has been deactivated." });
             return;
         }
 
-        await next(context);
+        using (LogContext.PushProperty("UserName", cached.UserName))
+        {
+            await next(context);
+        }
     }
+
+    private sealed record CachedUser(bool IsActive, string? UserName);
 }
