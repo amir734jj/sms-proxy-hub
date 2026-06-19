@@ -18,7 +18,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // Store SmsProviderType as lowercase string for backwards compatibility
         builder.Entity<SmsConnection>()
