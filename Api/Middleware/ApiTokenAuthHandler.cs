@@ -21,6 +21,11 @@ public sealed class ApiTokenAuthHandler(
 {
     public const string SchemeName = "ApiToken";
 
+    /// <summary>
+    /// Claim type carrying the API token's identifier (never the raw token value).
+    /// </summary>
+    public const string ApiTokenIdClaimType = "api_token_id";
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var authHeader = Request.Headers.Authorization.ToString();
@@ -47,6 +52,7 @@ public sealed class ApiTokenAuthHandler(
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ApiTokenIdClaimType, result.Value.TokenId.ToString()),
             new Claim(ClaimTypes.Role, Shared.Roles.User)
         };
 

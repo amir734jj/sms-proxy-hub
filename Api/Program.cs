@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
@@ -22,20 +24,35 @@ using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Log.Logger = new LoggerConfiguration()
+var loggerConfiguration = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Error)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .Enrich.WithProperty("Application", "sms-proxy-hub")
+    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+    .Enrich.WithProperty("MachineName", Environment.MachineName)
     .Enrich.FromLogContext()
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/api-.log",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 7,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .CreateLogger();
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+var betterStackToken = builder.Configuration["BetterStack:SourceToken"];
+var betterStackHost = builder.Configuration["BetterStack:IngestingHost"];
+if (!string.IsNullOrWhiteSpace(betterStackToken) && !string.IsNullOrWhiteSpace(betterStackHost))
+{
+    var endpoint = betterStackHost.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+        ? betterStackHost
+        : $"https://{betterStackHost}";
+    loggerConfiguration.WriteTo.BetterStack(
+        sourceToken: betterStackToken,
+        betterStackEndpoint: endpoint);
+}
+
+Log.Logger = loggerConfiguration.CreateLogger();
 
 builder.Host.UseSerilog();
 
@@ -202,7 +219,31 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<ActiveUserMiddleware>();
 app.UseAuthorization();
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var user = httpContext.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        diagnosticContext.Set("AuthScheme", user.Identity.AuthenticationType);
+
+        var userId = user.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            diagnosticContext.Set("UserId", userId);
+        }
+
+        var apiTokenId = user.FindFirstValue(ApiTokenAuthHandler.ApiTokenIdClaimType);
+        if (!string.IsNullOrEmpty(apiTokenId))
+        {
+            diagnosticContext.Set("ApiTokenId", apiTokenId);
+        }
+    };
+});
 app.MapControllers();
 app.MapHealthChecks("/api/health").AllowAnonymous();
 

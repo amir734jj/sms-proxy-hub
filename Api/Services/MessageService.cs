@@ -3,6 +3,7 @@ using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
 using Newtonsoft.Json;
+using Serilog.Context;
 using Shared;
 using Shared.Contracts;
 
@@ -63,6 +64,10 @@ public sealed class MessageService(
     private async Task<(string? MessageId, bool Success)> TrySendViaConnection(
         SmsConnection connection, string normalizedPhone, string message, string? payload)
     {
+        using var _ = LogContext.PushProperty("ConnectionId", connection.Id);
+        using var __ = LogContext.PushProperty("ConnectionName", connection.Name);
+        using var ___ = LogContext.PushProperty("ProviderType", connection.ProviderType);
+
         var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson);
         if (config is null)
         {
@@ -93,11 +98,14 @@ public sealed class MessageService(
 
         if (messageId is not null)
         {
+            logger.LogInformation("SMS sent via connection {ConnectionName} (provider message id {ProviderMessageId})",
+                connection.Name, messageId);
             await webhookService.DeliverToAllAsync(connection.Id, WebhookEventType.SmsSent,
                 normalizedPhone, message, payload);
         }
         else
         {
+            logger.LogWarning("Provider returned no message ID for connection {ConnectionName}", connection.Name);
             await webhookService.DeliverToAllAsync(connection.Id, WebhookEventType.SmsFailed,
                 normalizedPhone, message, payload, reason: "Provider returned no message ID");
         }
