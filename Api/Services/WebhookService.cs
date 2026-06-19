@@ -144,6 +144,7 @@ public sealed class WebhookService(
                 ConnectionId = d.ConnectionId,
                 Event = d.Event,
                 Url = d.Url,
+                Payload = d.RequestBody,
                 HttpStatus = d.HttpStatus,
                 Success = d.Success,
                 Error = d.Error,

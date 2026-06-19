@@ -3,6 +3,8 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
 @inject IHxMessageBoxService MessageBox
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
 
 <PageTitle>Webhooks - SMS Proxy Hub</PageTitle>
 
@@ -85,7 +87,7 @@ else
 <div class="table-responsive">
     <table class="table table-sm">
         <thead>
-            <tr><th>Event</th><th>URL</th><th>Status</th><th>Error</th><th>Time</th><th></th></tr>
+            <tr><th>Event</th><th>URL</th><th>Payload</th><th>Status</th><th>Error</th><th>Time</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var d in _deliveries)
@@ -93,6 +95,7 @@ else
                 <tr>
                     <td><span class="badge bg-info">@d.Event</span></td>
                     <td><code class="text-truncate" style="max-width:250px; display:block" title="@d.Url">@d.Url</code></td>
+                    <td><small class="text-muted font-monospace" style="max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block" title="@FormatPayload(d.Payload)">@FormatPayload(d.Payload)</small></td>
                     <td>
                         @if (d.Success)
                         {
@@ -172,5 +175,16 @@ else
             await LoadAsync();
         }
         catch (Exception ex) { _error = $"Replay failed: {ex.Message}"; }
+    }
+
+    static string FormatPayload(string? payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload)) return "-";
+        try
+        {
+            var token = JToken.Parse(payload);
+            return token.ToString(Formatting.Indented);
+        }
+        catch { return payload; }
     }
 }

@@ -6,6 +6,7 @@ public class WebhookDeliveryDto
     public Guid ConnectionId { get; init; }
     public string Event { get; init; } = string.Empty;
     public string Url { get; init; } = string.Empty;
+    public string Payload { get; init; } = string.Empty;
     public int? HttpStatus { get; init; }
     public bool Success { get; init; }
     public string? Error { get; init; }
