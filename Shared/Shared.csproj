@@ -8,9 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="JsonSubTypes" Version="2.0.1" />
-    <PackageReference Include="libphonenumber-csharp" Version="9.0.31" />
+    <PackageReference Include="libphonenumber-csharp" Version="9.0.32" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="Refit" Version="11.0.1" />
+    <PackageReference Include="Refit" Version="11.2.0" />
   </ItemGroup>
 
   <ItemGroup>
