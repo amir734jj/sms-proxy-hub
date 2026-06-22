@@ -61,9 +61,12 @@ namespace SmsProxyHub.Client
             {
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiToken);
                 var response = await _httpClient.SendAsync(httpRequest, ct).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
 
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                    throw new SmsProxyHubException(response.StatusCode, body);
+
                 return JsonConvert.DeserializeObject<BulkSendSmsResponse>(body);
             }
         }

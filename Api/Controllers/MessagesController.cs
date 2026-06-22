@@ -11,22 +11,33 @@ namespace Api.Controllers;
 [Authorize]
 public sealed class MessagesController(
     IMessageService messageService,
-    IConnectionService connectionService) : ControllerBase
+    IConnectionService connectionService,
+    ILogger<MessagesController> logger) : ControllerBase
 {
     [HttpPost("send")]
     public async Task<IActionResult> Send([FromBody] SendSmsRequest req)
     {
         if (req.PhoneNumbers is null || req.PhoneNumbers.Length == 0 || string.IsNullOrWhiteSpace(req.Message))
+        {
+            logger.LogWarning("Rejected send request: phone numbers and message are required (phones={PhoneCount}, messageEmpty={MessageEmpty})",
+                req.PhoneNumbers?.Length ?? 0, string.IsNullOrWhiteSpace(req.Message));
             return BadRequest("Phone numbers and message are required.");
+        }
 
         if (req.Message.Length > 160)
-            return BadRequest("Message too long (max 160 characters).");
+        {
+            logger.LogWarning("Rejected send request to {Recipients}: message too long ({Length} chars, max 160). Message=\"{Message}\"",
+                string.Join(", ", req.PhoneNumbers), req.Message.Length, req.Message);
+            return BadRequest($"Message too long ({req.Message.Length} characters, max 160).");
+        }
 
         var userId = User.GetUserId();
 
         if (req.ConnectionId is not null &&
             !await connectionService.UserOwnsConnectionAsync(userId, req.ConnectionId.Value))
         {
+            logger.LogWarning("Rejected send request: connection {ConnectionId} not found or not owned by user {UserId}",
+                req.ConnectionId, userId);
             return NotFound("Connection not found.");
         }
 
