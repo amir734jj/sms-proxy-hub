@@ -21,7 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
 using Serilog.Events;
-using Api.Logging;
+using Serilog.Enrichers.Sensitive;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +34,14 @@ var loggerConfiguration = new LoggerConfiguration()
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
     .Enrich.WithProperty("MachineName", Environment.MachineName)
     .Enrich.FromLogContext()
-    .Enrich.With(new RedactingEnricher())
+    .Enrich.WithSensitiveDataMasking(options =>
+    {
+        options.Mode = MaskingMode.Globally;
+        foreach (var name in new[] { "PatientName", "Patient", "PatientPhone", "Phone", "To", "OriginalTo", "AdminPhone", "Message", "Payload", "Body", "Text" })
+        {
+            options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
+        }
+    })
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/api-.log",
