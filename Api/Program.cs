@@ -21,6 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
 using Serilog.Events;
+using Api.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,7 @@ var loggerConfiguration = new LoggerConfiguration()
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
     .Enrich.WithProperty("MachineName", Environment.MachineName)
     .Enrich.FromLogContext()
+    .Enrich.With(new RedactingEnricher())
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/api-.log",
