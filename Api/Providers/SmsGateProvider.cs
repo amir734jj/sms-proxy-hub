@@ -14,6 +14,12 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
     private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresAt)> TokenCache = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SendThrottles = new();
     private static readonly TimeSpan ThrottleDelay = TimeSpan.FromMilliseconds(500);
+
+    // SMS Gate validates the webhook Id with a `max=36` tag (see smsgateway.Webhook.id maxLength in
+    // the OpenAPI spec). Exceeding it makes the registration POST fail with HTTP 400, which previously
+    // happened silently. A bare GUID is exactly 36 chars, so any generated id must stay within this.
+    private const int MaxWebhookIdLength = 36;
+
     public SmsProviderType ProviderType => SmsProviderType.SmsGate;
 
     public async Task<string?> SendAsync(string to, string message, SmsConnectionConfig config)
@@ -147,7 +153,7 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
 
             var all = await client.WebhooksAllAsync();
             var ours = all
-                .Where(w => !string.IsNullOrEmpty(w.Id) && w.Id!.StartsWith($"sms-proxy-hub-{connectionId}", StringComparison.Ordinal))
+                .Where(w => !string.IsNullOrEmpty(w.Id) && w.Id!.StartsWith(connectionId.ToString("N"), StringComparison.Ordinal))
                 .Select(w => new RegisteredWebhookDto(w.Id!, w.Event.ToString(), w.Url ?? ""))
                 .ToList();
 
@@ -192,17 +198,27 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
     {
         var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
 
+        // SMS Gate limits the webhook Id to MaxWebhookIdLength (36) chars. Use the 32-char "N" GUID
+        // format plus a short suffix so both the SMS and MMS ids stay within the limit.
+        var idPrefix = connectionId.ToString("N");
+
         // Register one webhook per inbound event. MMS replies fire mms:received, which was previously
         // never registered, so picture/MMS replies were silently dropped.
         var subscriptions = new (string IdSuffix, WebhookEvent Event)[]
         {
-            ("", WebhookEvent.SmsReceived),
+            ("-sms", WebhookEvent.SmsReceived),
             ("-mms", WebhookEvent.MmsReceived)
         };
 
         foreach (var (idSuffix, webhookEvent) in subscriptions)
         {
-            var webhookId = $"sms-proxy-hub-{connectionId}{idSuffix}";
+            var webhookId = $"{idPrefix}{idSuffix}";
+
+            // Guard against ever sending an id that SMS Gate would reject with a 400.
+            if (webhookId.Length > MaxWebhookIdLength)
+                throw new InvalidOperationException(
+                    $"Webhook id '{webhookId}' is {webhookId.Length} chars, exceeding the SMS Gate limit of {MaxWebhookIdLength}.");
+
             await client.WebhooksPOSTAsync(new Webhook
             {
                 Id = webhookId,

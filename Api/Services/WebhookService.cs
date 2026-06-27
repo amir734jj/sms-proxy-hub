@@ -3,6 +3,7 @@ using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using EfCoreRepository.Models;
 using Newtonsoft.Json;
 using Shared.Contracts;
 
@@ -25,7 +26,7 @@ public sealed class WebhookService(
 
         return (await Dal.GetAll(
             filterExprs: [w => connectionIds.Contains(w.ConnectionId)],
-            orderByDesc: w => w.CreatedAt,
+            orderBy: Ordering<WebhookSubscription>.Desc(w => w.CreatedAt),
             project: w => new WebhookSubscriptionDto(w.Id, w.ConnectionId, w.Url, w.IsActive, w.CreatedAt)
         )).ToList();
     }
@@ -136,7 +137,7 @@ public sealed class WebhookService(
 
         return (await repository.For<WebhookDelivery>().GetAll(
             filterExprs: [d => connectionIds.Contains(d.ConnectionId)],
-            orderByDesc: d => d.CreatedAt,
+            orderBy: Ordering<WebhookDelivery>.Desc(d => d.CreatedAt),
             maxResults: limit,
             project: d => new WebhookDeliveryDto
             {

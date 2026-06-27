@@ -2,6 +2,7 @@ using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using EfCoreRepository.Models;
 using Newtonsoft.Json;
 using Serilog.Context;
 using Shared;
@@ -123,7 +124,7 @@ public sealed class MessageService(
 
         return (await Dal.GetAll(
             filterExprs: [m => connectionIds.Contains(m.ConnectionId)],
-            orderByDesc: m => m.CreatedAt,
+            orderBy: Ordering<SmsMessage>.Desc(m => m.CreatedAt),
             project: m => new SmsMessageDto
             {
                 Id = m.Id,
@@ -141,7 +142,7 @@ public sealed class MessageService(
     {
         return (await Dal.GetAll(
             filterExprs: [m => m.ConnectionId == connectionId],
-            orderByDesc: m => m.CreatedAt,
+            orderBy: Ordering<SmsMessage>.Desc(m => m.CreatedAt),
             project: m => new SmsMessageDto
             {
                 Id = m.Id,
@@ -164,7 +165,7 @@ public sealed class MessageService(
             filterExprs: [m => m.ConnectionId == connectionId
                           && candidates.Contains(m.To)
                           && m.Status == SmsMessageStatus.Sent],
-            orderByDesc: m => m.CreatedAt,
+            orderBy: Ordering<SmsMessage>.Desc(m => m.CreatedAt),
             maxResults: 1)).ToList();
 
         return results.Count > 0 ? results.First() : null;

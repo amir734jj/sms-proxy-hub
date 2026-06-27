@@ -3,6 +3,7 @@ using Api.Interfaces;
 using Api.Providers;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using EfCoreRepository.Models;
 using Newtonsoft.Json;
 using Shared.Contracts;
 
@@ -21,7 +22,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
     {
         return (await Dal.GetAll(
             filterExprs: [c => c.UserId == userId],
-            orderBy: c => c.Priority,
+            orderBy: Ordering<SmsConnection>.Asc(c => c.Priority),
             project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.Priority, c.CreatedAt)
         )).ToList();
     }
@@ -132,7 +133,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
     {
         return (await Dal.GetAll(
             filterExprs: [c => c.UserId == userId && c.IsActive],
-            orderBy: c => c.Priority
+            orderBy: Ordering<SmsConnection>.Asc(c => c.Priority)
         )).ToList();
     }
 

@@ -2,6 +2,7 @@ using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using EfCoreRepository.Models;
 using Shared.Contracts;
 
 namespace Api.Services;
@@ -14,7 +15,7 @@ public sealed class ApiTokenService(IEfRepository repository) : IApiTokenService
     {
         return (await Dal.GetAll(
             filterExprs: [t => t.UserId == userId],
-            orderByDesc: t => t.CreatedAt,
+            orderBy: Ordering<ApiToken>.Desc(t => t.CreatedAt),
             project: t => new ApiTokenDto(t.Id, t.Token, t.Name, t.IsActive, t.CreatedAt)
         )).ToList();
     }
