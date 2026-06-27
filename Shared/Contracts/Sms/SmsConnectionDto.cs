@@ -9,3 +9,10 @@ public record SmsConnectionDto(
     DateTimeOffset CreatedAt);
 
 public record SmsGateDeviceDto(string Id, string Name, string? LastSeen);
+
+public record WebhookRevalidationResult(
+    bool Success,
+    string Message,
+    List<RegisteredWebhookDto> RegisteredWebhooks);
+
+public record RegisteredWebhookDto(string Id, string Event, string Url);

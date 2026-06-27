@@ -20,6 +20,14 @@ public interface IConnectionsApi
     [Headers("Authorization: Bearer")]
     Task DeleteAsync(Guid id);
 
+    [Post("/api/connections/{id}/revalidate-webhook")]
+    [Headers("Authorization: Bearer")]
+    Task<WebhookRevalidationResult> RevalidateWebhookAsync(Guid id);
+
+    [Get("/api/connections/{id}/webhooks")]
+    [Headers("Authorization: Bearer")]
+    Task<List<RegisteredWebhookDto>> GetRegisteredWebhooksAsync(Guid id);
+
     [Post("/api/connections/smsgate-devices")]
     [Headers("Authorization: Bearer")]
     Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync([Body] SmsGateConnectionConfig config);

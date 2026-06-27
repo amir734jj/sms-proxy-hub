@@ -42,6 +42,20 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
         return deleted ? NoContent() : NotFound();
     }
 
+    [HttpPost("{id:guid}/revalidate-webhook")]
+    public async Task<IActionResult> RevalidateWebhook(Guid id)
+    {
+        var result = await connectionService.RevalidateWebhookAsync(User.GetUserId(), id);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("{id:guid}/webhooks")]
+    public async Task<IActionResult> GetWebhooks(Guid id)
+    {
+        var webhooks = await connectionService.GetRegisteredWebhooksAsync(User.GetUserId(), id);
+        return webhooks is null ? NotFound() : Ok(webhooks);
+    }
+
     [HttpPost("smsgate-devices")]
     public async Task<IActionResult> GetSmsGateDevices([FromBody] SmsGateConnectionConfig config)
     {

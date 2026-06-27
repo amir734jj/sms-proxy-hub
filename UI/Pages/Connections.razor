@@ -74,7 +74,45 @@ else
                                 <span class="badge bg-dark" title="Failover priority (lower = tried first)">Priority: @c.Priority</span>
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
+                            @if (_webhookInfo.TryGetValue(c.Id, out var info))
+                            {
+                                <div class="alert @(info.Success ? "alert-success" : "alert-danger") py-2 px-3 mt-2 mb-0 small">
+                                    <div>@info.Message</div>
+                                    @if (info.RegisteredWebhooks.Count > 0)
+                                    {
+                                        <ul class="mb-0 mt-1">
+                                            @foreach (var wh in info.RegisteredWebhooks)
+                                            {
+                                                <li><code>@wh.Event</code> &rarr; <code>@wh.Url</code></li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            }
+                            @if (_registeredWebhooks.TryGetValue(c.Id, out var hooks))
+                            {
+                                <div class="alert alert-info py-2 px-3 mt-2 mb-0 small">
+                                    @if (hooks.Count == 0)
+                                    {
+                                        <div>No webhooks registered on the device for this connection.</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="fw-semibold mb-1">Registered webhooks (@hooks.Count):</div>
+                                        <ul class="mb-0">
+                                            @foreach (var wh in hooks)
+                                            {
+                                                <li><code>@wh.Event</code> &rarr; <code>@wh.Url</code> <span class="text-muted">(@wh.Id)</span></li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            }
                         </div>
+                        <HxButton Text="Show webhooks" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2"
+                                  OnClick="@(() => ShowWebhooksAsync(c))" />
+                        <HxButton Text="Re-register webhook" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2"
+                                  OnClick="@(() => RevalidateWebhookAsync(c))" />
                         <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small"
                                   OnClick="@(() => DeleteAsync(c))" />
                     </div>
@@ -92,6 +130,8 @@ else
     SmsProviderType _newProvider = SmsProviderType.SmsGate;
     SmsGateConfigForm? _smsGateForm;
     TwilioConfigForm? _twilioForm;
+    readonly Dictionary<Guid, WebhookRevalidationResult> _webhookInfo = [];
+    readonly Dictionary<Guid, List<RegisteredWebhookDto>> _registeredWebhooks = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -132,6 +172,26 @@ else
         if (!await MessageBox.ConfirmAsync("Delete Connection", $"Delete '{c.Name}'?")) return;
         try { await Api.DeleteConnectionAsync(c.Id); _success = "Deleted."; await LoadAsync(); }
         catch (Exception ex) { _error = $"Failed: {ex.Message}"; }
+    }
+
+    async Task RevalidateWebhookAsync(SmsConnectionDto c)
+    {
+        _error = null; _success = null;
+        try
+        {
+            _webhookInfo[c.Id] = await Api.RevalidateWebhookAsync(c.Id);
+        }
+        catch (Exception ex) { _error = $"Re-register failed: {ex.Message}"; }
+    }
+
+    async Task ShowWebhooksAsync(SmsConnectionDto c)
+    {
+        _error = null; _success = null;
+        try
+        {
+            _registeredWebhooks[c.Id] = await Api.GetRegisteredWebhooksAsync(c.Id);
+        }
+        catch (Exception ex) { _error = $"Failed to load webhooks: {ex.Message}"; }
     }
 
     async Task MoveAsync(SmsConnectionDto c, int direction)

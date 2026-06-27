@@ -69,7 +69,9 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
 
         var root = JObject.Parse(body);
 
-        if (root["event"]?.ToString() != "sms:received")
+        var eventType = root["event"]?.ToString();
+        // Inbound replies arrive as sms:received or mms:received (when the user replies with a picture/MMS).
+        if (eventType != "sms:received" && eventType != "mms:received")
             return null;
 
         var payload = root["payload"];
@@ -89,9 +91,13 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             }
         }
 
+        // MMS payloads may carry the text under a different field than SMS.
+        var sender = payload["sender"]?.ToString() ?? payload["phoneNumber"]?.ToString() ?? "";
+        var message = (payload["message"] ?? payload["text"] ?? payload["subject"])?.ToString()?.Trim() ?? "";
+
         return new IncomingSms(
-            payload["sender"]?.ToString() ?? "",
-            payload["message"]?.ToString().Trim() ?? "",
+            sender,
+            message,
             payload["messageId"]?.ToString());
     }
 
@@ -119,22 +125,94 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             var client = await CreateAuthenticatedClientAsync(config, includeWebhookScope: true);
             if (client is null) return;
 
-            var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
-            var webhookId = $"sms-proxy-hub-{connectionId}";
-
-            await client.WebhooksPOSTAsync(new Webhook
-            {
-                Id = webhookId,
-                Event = WebhookEvent.SmsReceived,
-                Url = webhookUrl,
-                DeviceId = config.DeviceId
-            });
-
-            logger.LogInformation("SMS Gate webhook registered: {WebhookId} -> {Url}", webhookId, webhookUrl);
+            await RegisterWebhooksInternalAsync(client, config, connectionId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to register SMS Gate webhook for connection {ConnectionId}", connectionId);
+        }
+    }
+
+    // Re-registers the SMS and MMS webhooks and reports what is currently registered on the device,
+    // so the user can diagnose why an inbound reply (e.g. an MMS) was not delivered.
+    public async Task<WebhookRevalidationResult> RevalidateWebhooksAsync(SmsGateConnectionConfig config, Guid connectionId)
+    {
+        try
+        {
+            var client = await CreateAuthenticatedClientAsync(config, includeWebhookScope: true);
+            if (client is null)
+                return new WebhookRevalidationResult(false, "Failed to authenticate with the SMS Gate server.", []);
+
+            await RegisterWebhooksInternalAsync(client, config, connectionId);
+
+            var all = await client.WebhooksAllAsync();
+            var ours = all
+                .Where(w => !string.IsNullOrEmpty(w.Id) && w.Id!.StartsWith($"sms-proxy-hub-{connectionId}", StringComparison.Ordinal))
+                .Select(w => new RegisteredWebhookDto(w.Id!, w.Event.ToString(), w.Url ?? ""))
+                .ToList();
+
+            return new WebhookRevalidationResult(
+                true,
+                $"Re-registered SMS and MMS webhooks. {ours.Count} webhook(s) currently active on the device.",
+                ours);
+        }
+        catch (SmsGateApiException ex)
+        {
+            logger.LogWarning("SmsGate revalidate returned {StatusCode}: {Response}", ex.StatusCode, ex.Response);
+            return new WebhookRevalidationResult(false, $"SMS Gate returned {ex.StatusCode}: {ex.Response}", []);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to revalidate SMS Gate webhooks for connection {ConnectionId}", connectionId);
+            return new WebhookRevalidationResult(false, ex.Message, []);
+        }
+    }
+
+    // Lists every webhook currently registered on the SMS Gate device/account.
+    public async Task<List<RegisteredWebhookDto>> GetRegisteredWebhooksAsync(SmsGateConnectionConfig config)
+    {
+        try
+        {
+            var client = await CreateAuthenticatedClientAsync(config, includeWebhookScope: true);
+            if (client is null) return [];
+
+            var all = await client.WebhooksAllAsync();
+            return all
+                .Select(w => new RegisteredWebhookDto(w.Id ?? "", w.Event.ToString(), w.Url ?? ""))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list SMS Gate webhooks");
+            return [];
+        }
+    }
+
+    private async Task RegisterWebhooksInternalAsync(SmsGateClient client, SmsGateConnectionConfig config, Guid connectionId)
+    {
+        var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
+
+        // Register one webhook per inbound event. MMS replies fire mms:received, which was previously
+        // never registered, so picture/MMS replies were silently dropped.
+        var subscriptions = new (string IdSuffix, WebhookEvent Event)[]
+        {
+            ("", WebhookEvent.SmsReceived),
+            ("-mms", WebhookEvent.MmsReceived)
+        };
+
+        foreach (var (idSuffix, webhookEvent) in subscriptions)
+        {
+            var webhookId = $"sms-proxy-hub-{connectionId}{idSuffix}";
+            await client.WebhooksPOSTAsync(new Webhook
+            {
+                Id = webhookId,
+                Event = webhookEvent,
+                Url = webhookUrl,
+                DeviceId = config.DeviceId
+            });
+
+            logger.LogInformation("SMS Gate webhook registered: {WebhookId} ({Event}) -> {Url}",
+                webhookId, webhookEvent, webhookUrl);
         }
     }
 
@@ -167,7 +245,10 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             var scopes = new System.Collections.ObjectModel.Collection<JWTScope>
                 { JWTScope.MessagesSend, JWTScope.MessagesList, JWTScope.DevicesList };
             if (includeWebhookScope)
+            {
                 scopes.Add(JWTScope.WebhooksWrite);
+                scopes.Add(JWTScope.WebhooksList);
+            }
 
             var tokenResponse = await client.TokenPOSTAsync(new TokenRequest
             {

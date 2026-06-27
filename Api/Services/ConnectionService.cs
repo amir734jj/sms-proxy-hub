@@ -77,6 +77,44 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
         return true;
     }
 
+    public async Task<WebhookRevalidationResult?> RevalidateWebhookAsync(Guid userId, Guid id)
+    {
+        var connection = (await Dal.GetAll(
+            filterExprs: [c => c.Id == id && c.UserId == userId],
+            maxResults: 1)).FirstOrDefault();
+        if (connection is null) return null;
+
+        var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson, JsonSettings);
+        return config switch
+        {
+            SmsGateConnectionConfig smsGateConfig => await smsGateProvider.RevalidateWebhooksAsync(smsGateConfig, id),
+            TwilioConnectionConfig twilioConfig => await RevalidateTwilioAsync(twilioConfig, id),
+            _ => new WebhookRevalidationResult(false, "Unsupported provider.", [])
+        };
+    }
+
+    private async Task<WebhookRevalidationResult> RevalidateTwilioAsync(TwilioConnectionConfig config, Guid id)
+    {
+        await twilioProvider.RegisterWebhookAsync(config, id);
+        return new WebhookRevalidationResult(true,
+            "Twilio webhook re-registered. Twilio delivers SMS and MMS replies to the same URL.", []);
+    }
+
+    public async Task<List<RegisteredWebhookDto>?> GetRegisteredWebhooksAsync(Guid userId, Guid id)
+    {
+        var connection = (await Dal.GetAll(
+            filterExprs: [c => c.Id == id && c.UserId == userId],
+            maxResults: 1)).FirstOrDefault();
+        if (connection is null) return null;
+
+        var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson, JsonSettings);
+        return config switch
+        {
+            SmsGateConnectionConfig smsGateConfig => await smsGateProvider.GetRegisteredWebhooksAsync(smsGateConfig),
+            _ => []
+        };
+    }
+
     public async Task<SmsConnection?> GetByIdAsync(Guid id)
     {
         var results = (await Dal.GetAll(
