@@ -20,6 +20,23 @@ public sealed class ProviderWebhookController(
     [HttpPost("{connectionId:guid}")]
     public async Task<IActionResult> Receive(Guid connectionId)
     {
+        // Buffer the body up-front so we can log the raw payload and still let the provider parse it.
+        Request.EnableBuffering();
+        string rawBody;
+        using (var reader = new StreamReader(Request.Body, leaveOpen: true))
+        {
+            rawBody = await reader.ReadToEndAsync();
+        }
+        Request.Body.Position = 0;
+
+        logger.LogInformation(
+            "Inbound provider webhook for connection {ConnectionId} from {RemoteIp} (ContentType={ContentType}, Length={Length}). Body: {Body}",
+            connectionId,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.ContentType,
+            rawBody.Length,
+            rawBody);
+
         var connection = await connectionService.GetByIdAsync(connectionId);
         if (connection is null)
         {
@@ -34,8 +51,7 @@ public sealed class ProviderWebhookController(
             return Ok();
         }
 
-        // Let the provider parse the webhook
-        Request.EnableBuffering();
+        // Let the provider parse the webhook (body already buffered above)
         Request.Body.Position = 0;
 
         var provider = providerFactory.GetProvider(connection.ProviderType);
@@ -43,7 +59,9 @@ public sealed class ProviderWebhookController(
 
         if (incoming is null)
         {
-            logger.LogInformation("Provider webhook for {ConnectionId}: no SMS parsed (non-SMS event)", connectionId);
+            logger.LogInformation(
+                "Provider webhook for {ConnectionId}: nothing actionable parsed (non-inbound event, wrong device, or unparseable payload)",
+                connectionId);
             return Ok();
         }
 
@@ -54,6 +72,12 @@ public sealed class ProviderWebhookController(
         // Find the original outbound message to get the user's payload
         var originalMessage = await messageService.FindLatestSentToPhoneAsync(connectionId, normalizedPhone);
         string? originalPayload = originalMessage?.Payload;
+
+        logger.LogInformation(
+            "Webhook for connection {ConnectionId}: matched original message {Matched}; forwarding reply from {Phone} to subscriptions",
+            connectionId,
+            originalMessage is not null ? originalMessage.Id.ToString() : "none",
+            normalizedPhone);
 
         // Forward to all active webhook subscriptions for this connection
         await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsReply,
