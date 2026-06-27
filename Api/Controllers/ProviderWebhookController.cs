@@ -37,6 +37,22 @@ public sealed class ProviderWebhookController(
             rawBody.Length,
             rawBody);
 
+        try
+        {
+            return await ProcessAsync(connectionId, rawBody);
+        }
+        catch (Exception ex)
+        {
+            // Surface the real cause (otherwise the provider just sees an opaque 500) and let it retry.
+            logger.LogError(ex,
+                "Error processing provider webhook for connection {ConnectionId}. Body: {Body}",
+                connectionId, rawBody);
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private async Task<IActionResult> ProcessAsync(Guid connectionId, string rawBody)
+    {
         var connection = await connectionService.GetByIdAsync(connectionId);
         if (connection is null)
         {
@@ -51,7 +67,7 @@ public sealed class ProviderWebhookController(
             return Ok();
         }
 
-        // Let the provider parse the webhook (body already buffered above)
+        // Let the provider parse the webhook (body already buffered by the caller)
         Request.Body.Position = 0;
 
         var provider = providerFactory.GetProvider(connection.ProviderType);
