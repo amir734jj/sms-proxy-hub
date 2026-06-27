@@ -26,10 +26,10 @@ using Serilog.Enrichers.Sensitive;
 var builder = WebApplication.CreateBuilder(args);
 
 var loggerConfiguration = new LoggerConfiguration()
-    .MinimumLevel.Information()
+    .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Error)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
     .Enrich.WithProperty("Application", "sms-proxy-hub")
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
     .Enrich.WithProperty("MachineName", Environment.MachineName)
@@ -42,8 +42,10 @@ var loggerConfiguration = new LoggerConfiguration()
     //         options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
     //     }
     // })
+    // Console gets everything (Debug+); file/remote sinks stay at Information to avoid noise.
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
+        restrictedToMinimumLevel: LogEventLevel.Information,
         path: "logs/api-.log",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 7,
@@ -57,6 +59,7 @@ if (!string.IsNullOrWhiteSpace(betterStackToken) && !string.IsNullOrWhiteSpace(b
         ? betterStackHost
         : $"https://{betterStackHost}";
     loggerConfiguration.WriteTo.BetterStack(
+        restrictedToMinimumLevel: LogEventLevel.Information,
         sourceToken: betterStackToken,
         betterStackEndpoint: endpoint);
 }
