@@ -73,7 +73,16 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         using var reader = new StreamReader(request.Body, Encoding.UTF8, leaveOpen: true);
         var body = await reader.ReadToEndAsync();
 
-        var root = JObject.Parse(body);
+        JObject root;
+        try
+        {
+            root = JObject.Parse(body);
+        }
+        catch (Newtonsoft.Json.JsonException ex)
+        {
+            logger.LogWarning(ex, "SmsGate webhook body is not valid JSON; ignoring. Body: {Body}", body);
+            return null;
+        }
 
         var eventType = root["event"]?.ToString();
         // Inbound replies arrive as sms:received or mms:received (when the user replies with a picture/MMS).
