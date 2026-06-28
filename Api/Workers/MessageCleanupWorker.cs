@@ -2,6 +2,7 @@ using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
+using Shared;
 using Shared.Contracts;
 
 namespace Api.Workers;
@@ -9,7 +10,6 @@ namespace Api.Workers;
 public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogger<MessageCleanupWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(6);
-    private const int RetentionDays = 7;
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -37,7 +37,7 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
         var messageDal = repo.For<SmsMessage>();
         var statsDal = repo.For<DailyStats>();
 
-        var cutoff = DateTimeOffset.UtcNow.AddDays(-RetentionDays);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-MessageRetention.Days);
 
         var oldMessages = (await messageDal.GetAll(
             filterExprs: [m => m.CreatedAt < cutoff]
@@ -91,6 +91,6 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
             await deliveryDal.DeleteMany(oldDeliveries.Select(d => d.Id).ToArray());
 
         logger.LogInformation("Cleaned up {MsgCount} messages and {DelCount} webhook deliveries older than {Days} days",
-            oldMessages.Count, oldDeliveries.Count, RetentionDays);
+            oldMessages.Count, oldDeliveries.Count, MessageRetention.Days);
     }
 }
