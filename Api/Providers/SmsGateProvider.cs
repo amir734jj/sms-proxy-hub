@@ -95,8 +95,9 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         }
 
         var eventType = root["event"]?.ToString();
-        // Inbound replies arrive as sms:received or mms:received (when the user replies with a picture/MMS).
-        if (eventType != "sms:received" && eventType != "mms:received")
+        // Inbound replies: SMS text arrives as sms:received. For MMS, mms:received is metadata-only
+        // (no body), so we act on mms:downloaded instead, which carries the actual "body" text.
+        if (eventType != "sms:received" && eventType != "mms:downloaded")
             return null;
 
         var payload = root["payload"];
@@ -116,9 +117,9 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             }
         }
 
-        // MMS payloads may carry the text under a different field than SMS.
+        // sms:received carries the text in "message"; mms:downloaded carries it in "body".
         var sender = payload["sender"]?.ToString() ?? payload["phoneNumber"]?.ToString() ?? "";
-        var message = (payload["message"] ?? payload["text"] ?? payload["subject"])?.ToString()?.Trim() ?? "";
+        var message = (payload["message"] ?? payload["body"] ?? payload["text"] ?? payload["subject"])?.ToString()?.Trim() ?? "";
 
         return new IncomingSms(
             sender,
