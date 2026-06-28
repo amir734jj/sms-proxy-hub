@@ -37,14 +37,14 @@ var loggerConfiguration = new LoggerConfiguration()
     .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
     .Enrich.WithProperty("MachineName", Environment.MachineName)
     .Enrich.FromLogContext()
-    // .Enrich.WithSensitiveDataMasking(options =>
-    // {
-    //     options.Mode = MaskingMode.Globally;
-    //     foreach (var name in new[] { "PatientName", "Patient", "PatientPhone", "Phone", "To", "OriginalTo", "AdminPhone", "Message", "Payload", "Body", "Text" })
-    //     {
-    //         options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
-    //     }
-    // })
+    .Enrich.WithSensitiveDataMasking(options =>
+    {
+        options.Mode = MaskingMode.Globally;
+        foreach (var name in new[] { "PatientName", "Patient", "PatientPhone", "Phone", "To", "OriginalTo", "AdminPhone", "Message", "Payload", "Body", "Text" })
+        {
+            options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
+        }
+    })
     // Console mirrors everything at Information+; file/remote sinks also stay at Information.
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     // Streams logs to admins watching the LogsHub (no-op until the hub context is set post-build).

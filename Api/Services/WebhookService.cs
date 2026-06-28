@@ -6,6 +6,7 @@ using EfCoreRepository.Extensions;
 using EfCoreRepository.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Shared;
 using Shared.Contracts;
 
 namespace Api.Services;
@@ -87,10 +88,18 @@ public sealed class WebhookService(
         string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null,
         string? subject = null, JToken? attachments = null)
     {
+        var phoneE164 = PhoneUtility.NormalizePhoneNumber(phone) ?? phone;
+        var phoneDigits = ToDigits(phoneE164);
+        var phoneNational = ToUsNationalDigits(phoneDigits);
+        var callbackPhone = phoneNational ?? phoneE164;
+
         var callbackPayload = new
         {
             @event = eventType.ToString(),
-            phone,
+            phone = callbackPhone,
+            phoneE164,
+            phoneDigits,
+            phoneNational,
             message,
             subject,
             attachments,
@@ -200,5 +209,19 @@ public sealed class WebhookService(
         catch (Exception ex) { logger.LogError(ex, "Failed to save replay delivery log"); }
 
         return true;
+    }
+
+    private static string ToDigits(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return value;
+        return new string(value.Where(char.IsDigit).ToArray());
+    }
+
+    private static string? ToUsNationalDigits(string digits)
+    {
+        if (string.IsNullOrWhiteSpace(digits)) return null;
+        if (digits.Length == 11 && digits.StartsWith('1')) return digits[1..];
+        if (digits.Length == 10) return digits;
+        return null;
     }
 }

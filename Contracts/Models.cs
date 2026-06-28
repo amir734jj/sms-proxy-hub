@@ -20,6 +20,18 @@ namespace SmsProxyHub.Contracts
         [JsonProperty("phone")]
         public string Phone { get; set; }
 
+        // E.164 canonical phone number (e.g. +14145551234) when derivable.
+        [JsonProperty("phoneE164")]
+        public string PhoneE164 { get; set; }
+
+        // Digits-only phone variant useful for local DB lookups.
+        [JsonProperty("phoneDigits")]
+        public string PhoneDigits { get; set; }
+
+        // US-national digits (10-digit) when the phone belongs to NANP (+1).
+        [JsonProperty("phoneNational")]
+        public string PhoneNational { get; set; }
+
         [JsonProperty("message")]
         public string Message { get; set; }
 
