@@ -15,6 +15,9 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SendThrottles = new();
     private static readonly TimeSpan ThrottleDelay = TimeSpan.FromMilliseconds(500);
 
+    // Base URLs whose server returned 501 for the logs endpoint; we stop polling those.
+    private static readonly ConcurrentDictionary<string, byte> LogsUnsupported = new();
+
     // SMS Gate validates the webhook Id with a `max=36` tag (see smsgateway.Webhook.id maxLength in
     // the OpenAPI spec). Exceeding it makes the registration POST fail with HTTP 400, which previously
     // happened silently. A bare GUID is exactly 36 chars, so any generated id must stay within this.
@@ -204,8 +207,14 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
     }
 
     // Fetches recent log entries from the SMS Gate server for the given connection.
+    // Returns false (via LogsSupported) when the server doesn't implement the logs API (HTTP 501),
+    // so callers can stop polling it.
     public async Task<List<LogEntry>> GetLogsAsync(SmsGateConnectionConfig config, DateTimeOffset? from = null)
     {
+        // Some SMS Gate server builds don't implement the logs endpoint; skip those we've already seen.
+        if (LogsUnsupported.ContainsKey(config.BaseUrl))
+            return [];
+
         try
         {
             var client = await CreateAuthenticatedClientAsync(config, includeLogsScope: true);
@@ -213,6 +222,13 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
 
             var logs = await client.LogsAsync(from, null);
             return logs.ToList();
+        }
+        catch (SmsGateApiException ex) when (ex.StatusCode == 501)
+        {
+            // Log once, then stop hitting this server's logs endpoint.
+            if (LogsUnsupported.TryAdd(config.BaseUrl, 0))
+                logger.LogInformation("SMS Gate server {BaseUrl} does not implement the logs API; log streaming disabled for it.", config.BaseUrl);
+            return [];
         }
         catch (Exception ex)
         {
