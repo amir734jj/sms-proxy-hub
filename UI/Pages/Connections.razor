@@ -86,11 +86,11 @@ else
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
                         </div>
-                        <HxButton Text="Show webhooks" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2"
+                        <HxButton Text="Show webhooks" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2 text-nowrap flex-shrink-0"
                                   OnClick="@(() => ShowWebhooksAsync(c))" />
-                        <HxButton Text="Re-register webhook" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2"
+                        <HxButton Text="Re-register webhook" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2 text-nowrap flex-shrink-0"
                                   OnClick="@(() => RevalidateWebhookAsync(c))" />
-                        <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small"
+                        <HxButton Text="Delete" Color="ThemeColor.Danger" Size="ButtonSize.Small" CssClass="text-nowrap flex-shrink-0"
                                   OnClick="@(() => DeleteAsync(c))" />
                     </div>
                     @if (_webhookInfo.TryGetValue(c.Id, out var info))
