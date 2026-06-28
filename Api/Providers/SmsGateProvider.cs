@@ -203,6 +203,24 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         }
     }
 
+    // Fetches recent log entries from the SMS Gate server for the given connection.
+    public async Task<List<LogEntry>> GetLogsAsync(SmsGateConnectionConfig config, DateTimeOffset? from = null)
+    {
+        try
+        {
+            var client = await CreateAuthenticatedClientAsync(config, includeLogsScope: true);
+            if (client is null) return [];
+
+            var logs = await client.LogsAsync(from, null);
+            return logs.ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SmsGate fetch logs failed");
+            return [];
+        }
+    }
+
     private async Task RegisterWebhooksInternalAsync(SmsGateClient client, SmsGateConnectionConfig config, Guid connectionId)
     {
         var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
@@ -241,15 +259,17 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         }
     }
 
-    private async Task<SmsGateClient?> CreateAuthenticatedClientAsync(SmsGateConnectionConfig config, bool includeWebhookScope = false)
+    private async Task<SmsGateClient?> CreateAuthenticatedClientAsync(SmsGateConnectionConfig config, bool includeWebhookScope = false, bool includeLogsScope = false)
     {
         try
         {
+            // Tokens carrying extra scopes (webhooks/logs) are fetched fresh rather than cached.
+            var extraScopes = includeWebhookScope || includeLogsScope;
             var cacheKey = $"{config.BaseUrl}|{config.Username}";
             var httpClient = httpClientFactory.CreateClient();
 
             // check token cache
-            if (!includeWebhookScope && TokenCache.TryGetValue(cacheKey, out var cached)
+            if (!extraScopes && TokenCache.TryGetValue(cacheKey, out var cached)
                 && cached.ExpiresAt > DateTimeOffset.UtcNow)
             {
                 httpClient.DefaultRequestHeaders.Authorization =
@@ -274,6 +294,8 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
                 scopes.Add(JWTScope.WebhooksWrite);
                 scopes.Add(JWTScope.WebhooksList);
             }
+            if (includeLogsScope)
+                scopes.Add(JWTScope.LogsRead);
 
             var tokenResponse = await client.TokenPOSTAsync(new TokenRequest
             {
@@ -284,8 +306,8 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", tokenResponse.Access_token);
 
-            // cache the token (not for webhook-scoped tokens since those are one-off)
-            if (!includeWebhookScope)
+            // cache the token (not for webhook/logs-scoped tokens since those are one-off)
+            if (!extraScopes)
             {
                 var expiresAt = tokenResponse.Expires_at ?? DateTimeOffset.UtcNow.AddMinutes(50);
                 // use token for 2/3 of its lifetime, then refresh

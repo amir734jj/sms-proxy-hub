@@ -1,0 +1,126 @@
+@page "/admin/logs"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Configuration
+@using Shared.Contracts
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IConfiguration Config
+@implements IAsyncDisposable
+
+<PageTitle>Live Logs - SMS Proxy Hub</PageTitle>
+
+@if (!Auth.IsAuthenticated || !Auth.IsAdmin) { Nav.NavigateTo("/"); return; }
+
+<div class="d-flex align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0 me-3">Live Logs</h4>
+    <span class="badge @(_connected ? "bg-success" : "bg-secondary")">@(_connected ? "Connected" : "Disconnected")</span>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+        <select class="form-select form-select-sm" style="width:auto" @bind="_sourceFilter">
+            <option value="All">All sources</option>
+            <option value="App">App</option>
+            <option value="SmsGate">SMS Gate</option>
+        </select>
+        <HxButton Text="@(_paused ? "Resume" : "Pause")" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="() => _paused = !_paused" />
+        <HxButton Text="Clear" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="Clear" />
+    </div>
+</div>
+
+@if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
+
+<div class="bg-dark text-light p-2 rounded font-monospace small" style="height:70vh; overflow-y:auto;">
+    @if (!_visible.Any())
+    {
+        <div class="text-muted">Waiting for logs…</div>
+    }
+    else
+    {
+        @foreach (var log in _visible)
+        {
+            <div class="text-break">
+                <span class="text-muted">@log.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
+                <span class="badge @SourceBadge(log.Source) me-1">@log.Source</span>
+                <span class="@LevelClass(log.Level)">@log.Level</span>
+                <span>@log.Message</span>
+                @if (!string.IsNullOrEmpty(log.Detail))
+                {
+                    <div class="text-warning ps-4">@log.Detail</div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    readonly List<LogStreamEntry> _logs = [];
+    const int MaxEntries = 1000;
+    HubConnection? _hub;
+    bool _connected;
+    bool _paused;
+    string _sourceFilter = "All";
+    string? _error;
+
+    IEnumerable<LogStreamEntry> _visible =>
+        _sourceFilter == "All" ? _logs : _logs.Where(l => l.Source == _sourceFilter);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated || !Auth.IsAdmin) return;
+
+        var baseUrl = Config["ApiBaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = Nav.BaseUri;
+        var hubUrl = $"{baseUrl.TrimEnd('/')}/hubs/logs";
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult(Auth.Token);
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<LogStreamEntry>("Log", OnLog);
+        _hub.Reconnected += _ => { _connected = true; return InvokeAsync(StateHasChanged); };
+        _hub.Reconnecting += _ => { _connected = false; return InvokeAsync(StateHasChanged); };
+        _hub.Closed += _ => { _connected = false; return InvokeAsync(StateHasChanged); };
+
+        try
+        {
+            await _hub.StartAsync();
+            _connected = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to connect: {ex.Message}";
+        }
+    }
+
+    void OnLog(LogStreamEntry entry)
+    {
+        if (_paused) return;
+
+        _logs.Add(entry);
+        if (_logs.Count > MaxEntries) _logs.RemoveRange(0, _logs.Count - MaxEntries);
+        InvokeAsync(StateHasChanged);
+    }
+
+    void Clear() => _logs.Clear();
+
+    static string SourceBadge(string source) => source == "SmsGate" ? "bg-info" : "bg-primary";
+
+    static string LevelClass(string level) => level.ToUpperInvariant() switch
+    {
+        "ERROR" or "FATAL" => "text-danger fw-bold me-1",
+        "WARN" or "WARNING" => "text-warning me-1",
+        "DEBUG" => "text-muted me-1",
+        _ => "text-success me-1"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            await _hub.DisposeAsync();
+        }
+    }
+}

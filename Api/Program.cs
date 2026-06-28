@@ -5,7 +5,9 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http.Extensions;
 using Api.Data;
 using Api.Data.Entities;
+using Api.Hubs;
 using Api.Interfaces;
+using Api.Logging;
 using Api.Middleware;
 using Api.Providers;
 using Api.Utilities;
@@ -15,6 +17,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -44,6 +47,8 @@ var loggerConfiguration = new LoggerConfiguration()
     // })
     // Console mirrors everything at Information+; file/remote sinks also stay at Information.
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    // Streams logs to admins watching the LogsHub (no-op until the hub context is set post-build).
+    .WriteTo.SignalR()
     .WriteTo.File(
         restrictedToMinimumLevel: LogEventLevel.Information,
         path: "logs/api-.log",
@@ -122,6 +127,19 @@ builder.Services
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
             RoleClaimType = "role"
         };
+        // SignalR (WebSockets) can't send an Authorization header, so accept the token from the query string.
+        opt.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     })
     .AddScheme<AuthenticationSchemeOptions, ApiTokenAuthHandler>(ApiTokenAuthHandler.SchemeName, _ => { })
     .AddPolicyScheme("Multi", "JWT or API Token", opt =>
@@ -174,6 +192,8 @@ builder.Services.Scan(scan => scan
 
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<Api.Workers.MessageCleanupWorker>();
+builder.Services.AddHostedService<Api.Workers.SmsGateLogStreamWorker>();
+builder.Services.AddSignalR();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(opt =>
@@ -257,7 +277,11 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 app.MapControllers();
+app.MapHub<LogsHub>("/hubs/logs");
 app.MapHealthChecks("/api/health").AllowAnonymous();
+
+// Wire the live-log Serilog sink now that the hub context is available.
+SignalRLogSink.HubContext = app.Services.GetRequiredService<IHubContext<LogsHub>>();
 
 app.MapFallback("api/{**rest}", async context =>
 {
