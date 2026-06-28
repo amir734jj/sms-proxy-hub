@@ -2,7 +2,6 @@
 @inject ApiService Api
 @inject AuthService Auth
 @inject NavigationManager Nav
-@using Shared
 @using Newtonsoft.Json
 @using Newtonsoft.Json.Linq
 
@@ -13,7 +12,7 @@
 <div class="d-flex align-items-center mb-4">
     <div>
         <h4 class="mb-0">Message History</h4>
-        <small class="text-muted">Messages are automatically deleted after @MessageRetention.Days days.</small>
+        <small class="text-muted">Messages are automatically deleted based on each connection's retention setting.</small>
     </div>
     <div class="ms-auto">
         <HxButton Text="Refresh" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="LoadAsync" />

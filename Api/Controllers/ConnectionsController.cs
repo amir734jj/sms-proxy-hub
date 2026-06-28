@@ -77,4 +77,14 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
         var reordered = await connectionService.ReorderAsync(User.GetUserId(), orderedIds);
         return reordered ? Ok() : BadRequest("Invalid connection IDs.");
     }
+
+    [HttpPut("{id:guid}/retention-days")]
+    public async Task<IActionResult> UpdateRetentionDays(Guid id, [FromBody] int days)
+    {
+        if (days < 1 || days > 3650)
+            return BadRequest("Retention days must be between 1 and 3650.");
+
+        var updated = await connectionService.UpdateMessageRetentionDaysAsync(User.GetUserId(), id, days);
+        return updated ? NoContent() : NotFound();
+    }
 }

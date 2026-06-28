@@ -39,4 +39,8 @@ public interface IConnectionsApi
     [Post("/api/connections/reorder")]
     [Headers("Authorization: Bearer")]
     Task ReorderAsync([Body] List<Guid> orderedIds);
+
+    [Put("/api/connections/{id}/retention-days")]
+    [Headers("Authorization: Bearer")]
+    Task UpdateRetentionDaysAsync(Guid id, [Body] int days);
 }

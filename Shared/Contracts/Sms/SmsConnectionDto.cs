@@ -6,6 +6,7 @@ public record SmsConnectionDto(
     SmsProviderType ProviderType,
     bool IsActive,
     int Priority,
+    int MessageRetentionDays,
     DateTimeOffset CreatedAt);
 
 public record SmsGateDeviceDto(string Id, string Name, string? LastSeen);
@@ -16,3 +17,4 @@ public record WebhookRevalidationResult(
     List<RegisteredWebhookDto> RegisteredWebhooks);
 
 public record RegisteredWebhookDto(string Id, string Event, string Url);
+

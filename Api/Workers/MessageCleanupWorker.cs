@@ -34,63 +34,81 @@ public sealed class MessageCleanupWorker(IServiceProvider serviceProvider, ILogg
     {
         using var scope = serviceProvider.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IEfRepository>();
+        var connectionDal = repo.For<SmsConnection>();
         var messageDal = repo.For<SmsMessage>();
         var statsDal = repo.For<DailyStats>();
+        var deliveryDal = repo.For<WebhookDelivery>();
 
-        var cutoff = DateTimeOffset.UtcNow.AddDays(-MessageRetention.Days);
+        var connections = (await connectionDal.GetAll()).ToList();
+        if (connections.Count == 0) return;
 
-        var oldMessages = (await messageDal.GetAll(
-            filterExprs: [m => m.CreatedAt < cutoff]
-        )).ToList();
+        var totalOldMessages = 0;
+        var totalOldDeliveries = 0;
 
-        if (oldMessages.Count == 0) return;
-
-        // roll up into daily stats
-        var groups = oldMessages
-            .GroupBy(m => (m.ConnectionId, Date: DateOnly.FromDateTime(m.CreatedAt.UtcDateTime)));
-
-        foreach (var group in groups)
+        foreach (var connection in connections)
         {
-            var existing = (await statsDal.GetAll(
-                filterExprs: [s => s.ConnectionId == group.Key.ConnectionId && s.Date == group.Key.Date],
-                maxResults: 1
-            )).FirstOrDefault();
+            var retentionDays = connection.MessageRetentionDays > 0 ? connection.MessageRetentionDays : MessageRetention.Days;
+            var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays);
 
-            if (existing is not null)
+            var oldMessages = (await messageDal.GetAll(
+                filterExprs: [m => m.ConnectionId == connection.Id && m.CreatedAt < cutoff]
+            )).ToList();
+
+            if (oldMessages.Count > 0)
             {
-                await statsDal.Update(existing.Id, s =>
+                // Roll old messages into daily aggregates before deletion.
+                var groups = oldMessages
+                    .GroupBy(m => DateOnly.FromDateTime(m.CreatedAt.UtcDateTime));
+
+                foreach (var group in groups)
                 {
-                    s.Sent += group.Count(m => m.Status == SmsMessageStatus.Sent);
-                    s.Failed += group.Count(m => m.Status == SmsMessageStatus.Failed);
-                    s.Replies += group.Count(m => m.Status == SmsMessageStatus.ReplyReceived);
-                });
+                    var existing = (await statsDal.GetAll(
+                        filterExprs: [s => s.ConnectionId == connection.Id && s.Date == group.Key],
+                        maxResults: 1
+                    )).FirstOrDefault();
+
+                    if (existing is not null)
+                    {
+                        await statsDal.Update(existing.Id, s =>
+                        {
+                            s.Sent += group.Count(m => m.Status == SmsMessageStatus.Sent);
+                            s.Failed += group.Count(m => m.Status == SmsMessageStatus.Failed);
+                            s.Replies += group.Count(m => m.Status == SmsMessageStatus.ReplyReceived);
+                        });
+                    }
+                    else
+                    {
+                        await statsDal.Save(new DailyStats
+                        {
+                            ConnectionId = connection.Id,
+                            Date = group.Key,
+                            Sent = group.Count(m => m.Status == SmsMessageStatus.Sent),
+                            Failed = group.Count(m => m.Status == SmsMessageStatus.Failed),
+                            Replies = group.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
+                        });
+                    }
+                }
+
+                await messageDal.DeleteMany(oldMessages.Select(m => m.Id).ToArray());
+                totalOldMessages += oldMessages.Count;
             }
-            else
+
+            var oldDeliveries = (await deliveryDal.GetAll(
+                filterExprs: [d => d.ConnectionId == connection.Id && d.CreatedAt < cutoff]
+            )).ToList();
+
+            if (oldDeliveries.Count > 0)
             {
-                await statsDal.Save(new DailyStats
-                {
-                    ConnectionId = group.Key.ConnectionId,
-                    Date = group.Key.Date,
-                    Sent = group.Count(m => m.Status == SmsMessageStatus.Sent),
-                    Failed = group.Count(m => m.Status == SmsMessageStatus.Failed),
-                    Replies = group.Count(m => m.Status == SmsMessageStatus.ReplyReceived)
-                });
+                await deliveryDal.DeleteMany(oldDeliveries.Select(d => d.Id).ToArray());
+                totalOldDeliveries += oldDeliveries.Count;
             }
         }
 
-        // delete old messages in bulk
-        await messageDal.DeleteMany(oldMessages.Select(m => m.Id).ToArray());
+        if (totalOldMessages == 0 && totalOldDeliveries == 0) return;
 
-        // delete old webhook deliveries
-        var deliveryDal = repo.For<WebhookDelivery>();
-        var oldDeliveries = (await deliveryDal.GetAll(
-            filterExprs: [d => d.CreatedAt < cutoff]
-        )).ToList();
-
-        if (oldDeliveries.Count > 0)
-            await deliveryDal.DeleteMany(oldDeliveries.Select(d => d.Id).ToArray());
-
-        logger.LogInformation("Cleaned up {MsgCount} messages and {DelCount} webhook deliveries older than {Days} days",
-            oldMessages.Count, oldDeliveries.Count, MessageRetention.Days);
+        logger.LogInformation(
+            "Cleaned up {MsgCount} messages and {DelCount} webhook deliveries using per-connection retention policies",
+            totalOldMessages,
+            totalOldDeliveries);
     }
 }

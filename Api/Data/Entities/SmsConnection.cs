@@ -1,4 +1,5 @@
 using Api.Interfaces;
+using Shared;
 using Shared.Contracts;
 
 namespace Api.Data.Entities;
@@ -16,5 +17,6 @@ public sealed class SmsConnection : IEntity
     public string ConfigJson { get; set; } = "{}";
     public bool IsActive { get; set; } = true;
     public int Priority { get; set; }
+    public int MessageRetentionDays { get; set; } = MessageRetention.Days;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

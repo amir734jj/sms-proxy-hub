@@ -3,6 +3,7 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
 @inject IHxMessageBoxService MessageBox
+@using Shared
 
 <PageTitle>Connections - SMS Proxy Hub</PageTitle>
 
@@ -32,6 +33,10 @@
                     <option value="@SmsProviderType.SmsGate">SmsGate</option>
                     <option value="@SmsProviderType.Twilio">Twilio</option>
                 </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Retention (days)</label>
+                <input type="number" class="form-control" min="1" max="3650" @bind="_newMessageRetentionDays" />
             </div>
             @if (_newProvider == SmsProviderType.SmsGate)
             {
@@ -72,6 +77,7 @@ else
                                 <span class="badge bg-info">@c.ProviderType</span>
                                 <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
                                 <span class="badge bg-dark" title="Failover priority (lower = tried first)">Priority: @c.Priority</span>
+                                <span class="badge bg-secondary" title="Messages and webhook deliveries are cleaned after this many days">Retention: @c.MessageRetentionDays days</span>
                                 @if (_deviceStatus.TryGetValue(c.Id, out var ds) && ds is not null)
                                 {
                                     <span class="badge @(ds.Online ? "bg-success" : "bg-secondary")"
@@ -118,6 +124,15 @@ else
                             </div>
                             <div class="mt-1">
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
+                            </div>
+                            <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
+                                <label class="small text-muted mb-0" for="@($"retention-{c.Id}")">Retention days</label>
+                                <input id="@($"retention-{c.Id}")" type="number" class="form-control form-control-sm" style="width: 100px;"
+                                       min="1" max="3650"
+                                       value="@GetRetentionInputValue(c.Id, c.MessageRetentionDays)"
+                                       @onchange="e => OnRetentionInputChanged(c.Id, e.Value?.ToString())" />
+                                <HxButton Text="Save retention" Color="ThemeColor.Secondary" Size="ButtonSize.Small"
+                                          OnClick="@(() => SaveRetentionAsync(c))" />
                             </div>
                         </div>
                         <HxButton Text="Show webhooks" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="me-2 text-nowrap flex-shrink-0"
@@ -204,11 +219,13 @@ else
     string? _error, _success;
     string _newName = "";
     SmsProviderType _newProvider = SmsProviderType.SmsGate;
+    int _newMessageRetentionDays = MessageRetention.Days;
     SmsGateConfigForm? _smsGateForm;
     TwilioConfigForm? _twilioForm;
     readonly Dictionary<Guid, WebhookRevalidationResult> _webhookInfo = [];
     readonly Dictionary<Guid, List<RegisteredWebhookDto>> _registeredWebhooks = [];
     readonly Dictionary<Guid, DeviceStatusDto?> _deviceStatus = [];
+    readonly Dictionary<Guid, int> _editedRetentionDays = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -221,6 +238,7 @@ else
 
         foreach (var c in _connections)
         {
+            _editedRetentionDays[c.Id] = c.MessageRetentionDays;
             try { _deviceStatus[c.Id] = await Api.GetDeviceStatusAsync(c.Id); }
             catch { /* status is best-effort */ }
         }
@@ -230,6 +248,11 @@ else
     {
         _error = null; _success = null;
         if (string.IsNullOrWhiteSpace(_newName)) { _error = "Name is required."; return; }
+        if (_newMessageRetentionDays < 1 || _newMessageRetentionDays > 3650)
+        {
+            _error = "Retention days must be between 1 and 3650.";
+            return;
+        }
 
         SmsConnectionConfig config = _newProvider switch
         {
@@ -240,8 +263,9 @@ else
 
         try
         {
-            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config));
+            await Api.CreateConnectionAsync(new CreateConnectionRequest(_newName.Trim(), config, _newMessageRetentionDays));
             _newName = "";
+            _newMessageRetentionDays = MessageRetention.Days;
             _smsGateForm?.Reset();
             _twilioForm?.Reset();
             _success = "Connection created.";
@@ -291,6 +315,43 @@ else
             await LoadAsync();
         }
         catch (Exception ex) { _error = $"Reorder failed: {ex.Message}"; }
+    }
+
+    async Task SaveRetentionAsync(SmsConnectionDto c)
+    {
+        _error = null; _success = null;
+        var days = GetRetentionInputValue(c.Id, c.MessageRetentionDays);
+        if (days < 1 || days > 3650)
+        {
+            _error = "Retention days must be between 1 and 3650.";
+            return;
+        }
+
+        try
+        {
+            await Api.UpdateRetentionDaysAsync(c.Id, days);
+            _success = $"Updated retention for '{c.Name}' to {days} days.";
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to update retention: {ex.Message}";
+        }
+    }
+
+    int GetRetentionInputValue(Guid connectionId, int fallback)
+    {
+        return _editedRetentionDays.TryGetValue(connectionId, out var days) ? days : fallback;
+    }
+
+    void OnRetentionInputChanged(Guid connectionId, string? raw)
+    {
+        if (!int.TryParse(raw, out var days))
+        {
+            return;
+        }
+
+        _editedRetentionDays[connectionId] = days;
     }
 
     static string TransportLabel(int flags)

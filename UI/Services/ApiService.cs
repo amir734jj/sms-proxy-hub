@@ -81,6 +81,7 @@ public sealed class ApiService(
     public Task<DeviceStatusDto?> GetDeviceStatusAsync(Guid id) => connectionsApi.GetDeviceStatusAsync(id);
     public Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync(SmsGateConnectionConfig config) => connectionsApi.GetSmsGateDevicesAsync(config);
     public Task ReorderConnectionsAsync(List<Guid> orderedIds) => connectionsApi.ReorderAsync(orderedIds);
+    public Task UpdateRetentionDaysAsync(Guid id, int days) => connectionsApi.UpdateRetentionDaysAsync(id, days);
 
     // Messages
     public Task<BulkSendSmsResponse> SendSmsAsync(SendSmsRequest req) => messagesApi.SendAsync(req);

@@ -23,7 +23,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
         return (await Dal.GetAll(
             filterExprs: [c => c.UserId == userId],
             orderBy: Ordering<SmsConnection>.Asc(c => c.Priority),
-            project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.Priority, c.CreatedAt)
+            project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.Priority, c.MessageRetentionDays, c.CreatedAt)
         )).ToList();
     }
 
@@ -39,6 +39,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
             Name = request.Name.Trim(),
             ProviderType = request.Config.Type,
             ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings),
+            MessageRetentionDays = NormalizeRetentionDays(request.MessageRetentionDays),
             Priority = nextPriority
         });
 
@@ -47,7 +48,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
         else if (request.Config is TwilioConnectionConfig twilioConfig)
             await twilioProvider.RegisterWebhookAsync(twilioConfig, entity.Id);
 
-        return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.CreatedAt);
+        return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.MessageRetentionDays, entity.CreatedAt);
     }
 
     public async Task<bool> UpdateAsync(Guid userId, Guid id, UpdateConnectionRequest request)
@@ -61,6 +62,7 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
             c.ConfigJson = JsonConvert.SerializeObject(request.Config, JsonSettings);
             c.IsActive = request.IsActive;
             c.Priority = request.Priority;
+            c.MessageRetentionDays = NormalizeRetentionDays(request.MessageRetentionDays);
         });
 
         if (request.Config is SmsGateConnectionConfig smsGateConfig)
@@ -154,5 +156,18 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
             c => c.Priority = priorityMap[c.Id]);
 
         return true;
+    }
+
+    public async Task<bool> UpdateMessageRetentionDaysAsync(Guid userId, Guid id, int days)
+    {
+        if (!await Dal.Any([c => c.Id == id && c.UserId == userId])) return false;
+
+        await Dal.Update(id, c => c.MessageRetentionDays = NormalizeRetentionDays(days));
+        return true;
+    }
+
+    private static int NormalizeRetentionDays(int days)
+    {
+        return Math.Clamp(days, 1, 3650);
     }
 }
