@@ -11,7 +11,6 @@ public sealed class SmsMessage : IEntity
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ConnectionId { get; set; }
     public string To { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
     public string? ProviderMessageId { get; set; }
 
     /// <summary>

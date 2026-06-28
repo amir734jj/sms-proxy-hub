@@ -95,7 +95,7 @@ public sealed class ProviderWebhookController(
                     connectionId, receipt.ProviderMessageId ?? "none", recipient);
 
                 await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsDelivered,
-                    recipient, delivered?.Message, delivered?.Payload);
+                    recipient, null, delivered?.Payload);
                 return Ok();
             }
 
