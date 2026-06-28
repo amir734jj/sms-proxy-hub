@@ -37,6 +37,7 @@
             <div class="col-md-2">
                 <label class="form-label">Retention (days)</label>
                 <input type="number" class="form-control" min="1" max="3650" @bind="_newMessageRetentionDays" />
+                <small class="text-muted d-block mt-1">Used for webhook delivery history and reply-matching records.</small>
             </div>
             @if (_newProvider == SmsProviderType.SmsGate)
             {
