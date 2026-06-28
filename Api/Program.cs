@@ -182,6 +182,10 @@ builder.Services.AddSingleton<TwilioProvider>();
 builder.Services.AddSingleton<ISmsProvider>(sp => sp.GetRequiredService<TwilioProvider>());
 builder.Services.AddSingleton<ISmsProviderFactory, SmsProviderFactory>();
 
+// Device liveness must be a singleton so it survives across requests (registered before the
+// Scrutor scan, whose Skip strategy then leaves it alone).
+builder.Services.AddSingleton<Api.Interfaces.IDeviceStatusService, Api.Services.DeviceStatusService>();
+
 // Auto-register services via Scrutor
 builder.Services.Scan(scan => scan
     .FromAssemblies(Assembly.Load("Api"))

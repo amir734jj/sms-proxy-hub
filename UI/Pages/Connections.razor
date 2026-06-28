@@ -68,10 +68,21 @@ else
                         </div>
                         <div class="flex-grow-1">
                             <div class="fw-semibold">@c.Name</div>
-                            <div class="d-flex gap-2 mt-1">
+                            <div class="d-flex gap-2 mt-1 flex-wrap align-items-center">
                                 <span class="badge bg-info">@c.ProviderType</span>
                                 <span class="badge @(c.IsActive ? "bg-success" : "bg-secondary")">@(c.IsActive ? "Active" : "Inactive")</span>
                                 <span class="badge bg-dark" title="Failover priority (lower = tried first)">Priority: @c.Priority</span>
+                                @if (_deviceStatus.TryGetValue(c.Id, out var ds) && ds is not null)
+                                {
+                                    <span class="badge @(ds.Online ? "bg-success" : "bg-secondary")"
+                                          title="@(ds.LastSeenAt is null ? "" : $"Last seen {ds.LastSeenAt.Value.ToLocalTime():g}")">
+                                        Device @(ds.Online ? "Online" : "Offline")
+                                    </span>
+                                    @if (ds.BatteryLevel is not null)
+                                    {
+                                        <span class="badge bg-secondary">Battery @ds.BatteryLevel%@(ds.IsCharging == true ? " (charging)" : "")</span>
+                                    }
+                                }
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
                         </div>
@@ -132,6 +143,7 @@ else
     TwilioConfigForm? _twilioForm;
     readonly Dictionary<Guid, WebhookRevalidationResult> _webhookInfo = [];
     readonly Dictionary<Guid, List<RegisteredWebhookDto>> _registeredWebhooks = [];
+    readonly Dictionary<Guid, DeviceStatusDto?> _deviceStatus = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -141,6 +153,12 @@ else
         try { _connections = await Api.GetConnectionsAsync(); }
         catch (Exception ex) { _error = $"Failed to load: {ex.Message}"; }
         finally { _loading = false; }
+
+        foreach (var c in _connections)
+        {
+            try { _deviceStatus[c.Id] = await Api.GetDeviceStatusAsync(c.Id); }
+            catch { /* status is best-effort */ }
+        }
     }
 
     async Task CreateAsync()

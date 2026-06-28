@@ -13,6 +13,7 @@ public sealed class ProviderWebhookController(
     IConnectionService connectionService,
     IMessageService messageService,
     IWebhookService webhookService,
+    IDeviceStatusService deviceStatusService,
     ILogger<ProviderWebhookController> logger) : ControllerBase
 {
     // POST /api/provider-webhook/{connectionId}
@@ -59,6 +60,9 @@ public sealed class ProviderWebhookController(
             logger.LogWarning("Webhook received for unknown connection {ConnectionId}", connectionId);
             return NotFound();
         }
+
+        // Any inbound webhook means the device is alive; system:ping also carries battery/health.
+        deviceStatusService.Record(connectionId, rawBody);
 
         var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson);
         if (config is null)

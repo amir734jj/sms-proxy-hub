@@ -10,7 +10,7 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/connections")]
 [Authorize]
-public sealed class ConnectionsController(IConnectionService connectionService, SmsGateProvider smsGateProvider) : ControllerBase
+public sealed class ConnectionsController(IConnectionService connectionService, SmsGateProvider smsGateProvider, IDeviceStatusService deviceStatusService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -54,6 +54,14 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
     {
         var webhooks = await connectionService.GetRegisteredWebhooksAsync(User.GetUserId(), id);
         return webhooks is null ? NotFound() : Ok(webhooks);
+    }
+
+    [HttpGet("{id:guid}/device-status")]
+    public async Task<IActionResult> GetDeviceStatus(Guid id)
+    {
+        if (!await connectionService.UserOwnsConnectionAsync(User.GetUserId(), id))
+            return NotFound();
+        return Ok(deviceStatusService.Get(id));
     }
 
     [HttpPost("smsgate-devices")]

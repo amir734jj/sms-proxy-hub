@@ -78,6 +78,7 @@ public sealed class ApiService(
     public Task DeleteConnectionAsync(Guid id) => connectionsApi.DeleteAsync(id);
     public Task<WebhookRevalidationResult> RevalidateWebhookAsync(Guid id) => connectionsApi.RevalidateWebhookAsync(id);
     public Task<List<RegisteredWebhookDto>> GetRegisteredWebhooksAsync(Guid id) => connectionsApi.GetRegisteredWebhooksAsync(id);
+    public Task<DeviceStatusDto?> GetDeviceStatusAsync(Guid id) => connectionsApi.GetDeviceStatusAsync(id);
     public Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync(SmsGateConnectionConfig config) => connectionsApi.GetSmsGateDevicesAsync(config);
     public Task ReorderConnectionsAsync(List<Guid> orderedIds) => connectionsApi.ReorderAsync(orderedIds);
 

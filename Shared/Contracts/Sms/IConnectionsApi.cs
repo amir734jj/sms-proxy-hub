@@ -28,6 +28,10 @@ public interface IConnectionsApi
     [Headers("Authorization: Bearer")]
     Task<List<RegisteredWebhookDto>> GetRegisteredWebhooksAsync(Guid id);
 
+    [Get("/api/connections/{id}/device-status")]
+    [Headers("Authorization: Bearer")]
+    Task<DeviceStatusDto?> GetDeviceStatusAsync(Guid id);
+
     [Post("/api/connections/smsgate-devices")]
     [Headers("Authorization: Bearer")]
     Task<List<SmsGateDeviceDto>> GetSmsGateDevicesAsync([Body] SmsGateConnectionConfig config);
