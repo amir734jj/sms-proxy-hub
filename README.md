@@ -52,7 +52,10 @@ sms-proxy-hub sends webhook POSTs to your registered URLs on these events:
 |-------|------|--------|
 | `SmsSent` | SMS accepted by provider | `phone`, `message`, `originalPayload` |
 | `SmsFailed` | Provider rejected the SMS | `phone`, `message`, `originalPayload`, `reason` |
-| `SmsReply` | Someone replied to an SMS you sent | `phone`, `message`, `originalPayload` |
+| `SmsReply` | Someone replied (SMS **or** MMS) to an SMS you sent | `phone`, `message`, `originalPayload`, plus `subject` + `attachments` for MMS |
+
+Replies can be SMS or MMS. For MMS, `message` carries the text body, and `subject`/`attachments`
+(the provider's media array, verbatim) are included; both are `null` for plain SMS.
 
 Payload format:
 
@@ -61,6 +64,8 @@ Payload format:
   "event": "SmsReply",
   "phone": "+15551234567",
   "message": "Yes, confirmed",
+  "subject": null,
+  "attachments": null,
   "originalPayload": "{\"clinicId\":\"abc\",\"patientId\":123}",
   "connectionId": "a1b2c3d4-...",
   "reason": null,
@@ -77,6 +82,7 @@ public IActionResult SmsWebhook([FromBody] WebhookCallbackPayload payload)
     if (payload.Event == WebhookEventType.SmsReply)
     {
         // payload.Phone, payload.Message, payload.OriginalPayload
+        // For MMS replies: payload.Subject and payload.Attachments (null for SMS)
     }
     return Ok();
 }
@@ -89,8 +95,11 @@ sms-proxy-hub finds the most recent outbound SMS to the replying phone number on
 ### Webhook auto-registration
 
 When you create a connection, sms-proxy-hub automatically registers the webhook with the provider:
-- **SmsGate** -- registers a device-specific `sms:received` webhook via the API
-- **Twilio** -- updates the phone number's `SmsUrl` to point to the proxy
+- **SmsGate** -- registers device-specific webhooks for the full event lifecycle (`sms:received`,
+  `mms:downloaded`, `sms:sent`/`delivered`/`failed`, `system:ping`, etc.). Inbound **SMS** replies
+  come from `sms:received`; inbound **MMS** reply text comes from `mms:downloaded` (which carries the
+  message body and media), so picture/MMS replies are delivered too.
+- **Twilio** -- updates the phone number's `SmsUrl` to point to the proxy (SMS and MMS share the URL)
 
 No manual setup needed -- just create the connection in the UI and it's ready.
 
