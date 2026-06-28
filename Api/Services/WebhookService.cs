@@ -110,13 +110,32 @@ public sealed class WebhookService(
         };
 
         var json = JsonConvert.SerializeObject(callbackPayload);
+
+        // The full payload (including message text/subject/attachments) is delivered live to the
+        // destination webhook, but message content is never persisted at rest. Store a redacted copy.
+        var storedJson = JsonConvert.SerializeObject(new
+        {
+            @event = eventType.ToString(),
+            phone = callbackPhone,
+            phoneE164,
+            phoneDigits,
+            phoneNational,
+            message = (string?)null,
+            subject = (string?)null,
+            attachments = (JToken?)null,
+            originalPayload,
+            connectionId,
+            reason,
+            timestamp = callbackPayload.timestamp
+        });
+
         var delivery = new WebhookDelivery
         {
             WebhookSubscriptionId = subscription.Id,
             ConnectionId = connectionId,
             Event = eventType.ToString(),
             Url = subscription.Url,
-            RequestBody = json
+            RequestBody = storedJson
         };
 
         try

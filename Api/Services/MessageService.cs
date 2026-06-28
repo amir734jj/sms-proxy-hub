@@ -77,7 +77,8 @@ public sealed class MessageService(
             {
                 ConnectionId = connection.Id,
                 To = normalizedPhone,
-                Message = message,
+                // Message text is intentionally never persisted.
+                Message = string.Empty,
                 Payload = payload,
                 Status = SmsMessageStatus.Failed
             });
@@ -91,7 +92,8 @@ public sealed class MessageService(
         {
             ConnectionId = connection.Id,
             To = normalizedPhone,
-            Message = message,
+            // Message text is intentionally never persisted.
+            Message = string.Empty,
             ProviderMessageId = messageId,
             Payload = payload,
             Status = messageId is not null ? SmsMessageStatus.Sent : SmsMessageStatus.Failed
