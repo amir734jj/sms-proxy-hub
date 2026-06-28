@@ -76,6 +76,19 @@ public sealed class TwilioProvider(IConfiguration configuration, ILogger<TwilioP
         return Task.FromResult<IncomingSms?>(new IncomingSms(from, body, messageSid, Attachments: attachments));
     }
 
+    public Task<DeliveryReceipt?> ParseDeliveryWebhookAsync(HttpRequest request, SmsConnectionConfig config)
+    {
+        // Twilio delivery receipts are form posts with MessageStatus=delivered (sent to a StatusCallback URL).
+        if (!request.HasFormContentType)
+            return Task.FromResult<DeliveryReceipt?>(null);
+
+        var form = request.Form;
+        if (!string.Equals(form["MessageStatus"].ToString(), "delivered", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult<DeliveryReceipt?>(null);
+
+        return Task.FromResult<DeliveryReceipt?>(new DeliveryReceipt(form["MessageSid"].ToString(), form["To"].ToString()));
+    }
+
     public async Task RegisterWebhookAsync(TwilioConnectionConfig config, Guid connectionId)
     {
         var publicUrl = configuration["App:PublicUrl"];

@@ -9,6 +9,7 @@ public interface IMessageService
     Task<List<SmsMessageDto>> GetAllForUserAsync(Guid userId);
     Task<List<SmsMessageDto>> GetByConnectionAsync(Guid connectionId);
     Task<SmsMessage?> FindLatestSentToPhoneAsync(Guid connectionId, string phone);
+    Task<SmsMessage?> FindSentByProviderIdOrPhoneAsync(Guid connectionId, string? providerMessageId, string phone);
     Task MarkReplyReceivedAsync(Guid messageId);
     Task<UsageStatsDto> GetUsageForUserAsync(Guid userId, int days = 30);
 }

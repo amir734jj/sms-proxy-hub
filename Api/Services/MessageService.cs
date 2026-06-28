@@ -171,6 +171,20 @@ public sealed class MessageService(
         return results.Count > 0 ? results.First() : null;
     }
 
+    public async Task<SmsMessage?> FindSentByProviderIdOrPhoneAsync(Guid connectionId, string? providerMessageId, string phone)
+    {
+        // Prefer an exact match on the provider's message id; fall back to the latest message to the phone.
+        if (!string.IsNullOrEmpty(providerMessageId))
+        {
+            var byId = (await Dal.GetAll(
+                filterExprs: [m => m.ConnectionId == connectionId && m.ProviderMessageId == providerMessageId],
+                maxResults: 1)).ToList();
+            if (byId.Count > 0) return byId.First();
+        }
+
+        return await FindLatestSentToPhoneAsync(connectionId, phone);
+    }
+
     public async Task MarkReplyReceivedAsync(Guid messageId)
     {
         await Dal.Update(messageId, m => m.Status = SmsMessageStatus.ReplyReceived);

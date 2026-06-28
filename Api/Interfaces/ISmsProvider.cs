@@ -25,6 +25,12 @@ public interface ISmsProvider
     /// </summary>
     /// <returns>Parsed incoming SMS or null if the request is not a valid SMS event.</returns>
     Task<IncomingSms?> ParseWebhookAsync(HttpRequest request, SmsConnectionConfig config);
+
+    /// <summary>
+    /// Parse a delivery-receipt webhook (e.g. SMS Gate sms:delivered, Twilio MessageStatus=delivered).
+    /// </summary>
+    /// <returns>A delivery receipt, or null if the request is not a delivery event.</returns>
+    Task<DeliveryReceipt?> ParseDeliveryWebhookAsync(HttpRequest request, SmsConnectionConfig config);
 }
 
 // A parsed inbound reply. MMS replies additionally carry Subject and Attachments
@@ -36,3 +42,6 @@ public sealed record IncomingSms(
     string? ProviderMessageId,
     string? Subject = null,
     JToken? Attachments = null);
+
+// A carrier delivery receipt for a message we previously sent (recipient confirmed delivery).
+public sealed record DeliveryReceipt(string? ProviderMessageId, string RecipientPhone);

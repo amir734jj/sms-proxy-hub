@@ -79,6 +79,23 @@ public sealed class ProviderWebhookController(
 
         if (incoming is null)
         {
+            // Not a reply - it may be a delivery receipt (sms:delivered) we forward as SmsDelivered.
+            Request.Body.Position = 0;
+            var receipt = await provider.ParseDeliveryWebhookAsync(Request, config);
+            if (receipt is not null)
+            {
+                var recipient = PhoneUtility.NormalizePhoneNumber(receipt.RecipientPhone) ?? receipt.RecipientPhone;
+                var delivered = await messageService.FindSentByProviderIdOrPhoneAsync(connectionId, receipt.ProviderMessageId, recipient);
+
+                logger.LogInformation(
+                    "Delivery receipt for connection {ConnectionId} (message {MessageId}) to {Phone}; forwarding SmsDelivered",
+                    connectionId, receipt.ProviderMessageId ?? "none", recipient);
+
+                await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsDelivered,
+                    recipient, delivered?.Message, delivered?.Payload);
+                return Ok();
+            }
+
             logger.LogInformation(
                 "Provider webhook for {ConnectionId}: nothing actionable parsed (non-inbound event, wrong device, or unparseable payload)",
                 connectionId);

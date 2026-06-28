@@ -135,6 +135,41 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
             hasAttachments ? attachments : null);
     }
 
+    public async Task<DeliveryReceipt?> ParseDeliveryWebhookAsync(HttpRequest request, SmsConnectionConfig config)
+    {
+        using var reader = new StreamReader(request.Body, Encoding.UTF8, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+
+        JObject root;
+        try
+        {
+            root = JObject.Parse(body);
+        }
+        catch (Newtonsoft.Json.JsonException)
+        {
+            return null;
+        }
+
+        if (root["event"]?.ToString() != "sms:delivered")
+            return null;
+
+        // Honor the per-connection device filter, same as inbound parsing.
+        if (config is SmsGateConnectionConfig smsGate
+            && !string.IsNullOrWhiteSpace(smsGate.DeviceId)
+            && root["deviceId"]?.ToString() != smsGate.DeviceId)
+        {
+            return null;
+        }
+
+        var payload = root["payload"];
+        if (payload is null)
+            return null;
+
+        // For outbound events, "recipient" is the destination number ("phoneNumber" is the deprecated alias).
+        var recipient = payload["recipient"]?.ToString() ?? payload["phoneNumber"]?.ToString() ?? "";
+        return new DeliveryReceipt(payload["messageId"]?.ToString(), recipient);
+    }
+
     public async Task<List<Device>> GetDevicesAsync(SmsGateConnectionConfig config)
     {
         try
