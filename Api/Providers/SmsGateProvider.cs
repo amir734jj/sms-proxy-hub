@@ -249,15 +249,21 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         var webhookUrl = $"{configuration["App:PublicUrl"]!.TrimEnd('/')}/api/provider-webhook/{connectionId}";
 
         // SMS Gate limits the webhook Id to MaxWebhookIdLength (36) chars. Use the 32-char "N" GUID
-        // format plus a short suffix so both the SMS and MMS ids stay within the limit.
+        // format plus a short (<=4 char) suffix so every event id stays within the limit.
         var idPrefix = connectionId.ToString("N");
 
-        // Register one webhook per inbound event. MMS replies fire mms:received, which was previously
-        // never registered, so picture/MMS replies were silently dropped.
+        // Register one webhook per event so the hub receives the full lifecycle (received, sent,
+        // delivered, failed, etc.). Suffixes must be unique and <=4 chars.
         var subscriptions = new (string IdSuffix, WebhookEvent Event)[]
         {
             ("-sms", WebhookEvent.SmsReceived),
-            ("-mms", WebhookEvent.MmsReceived)
+            ("-mms", WebhookEvent.MmsReceived),
+            ("-sdr", WebhookEvent.SmsDataReceived),
+            ("-snt", WebhookEvent.SmsSent),
+            ("-dlv", WebhookEvent.SmsDelivered),
+            ("-fld", WebhookEvent.SmsFailed),
+            ("-png", WebhookEvent.SystemPing),
+            ("-mdl", WebhookEvent.MmsDownloaded)
         };
 
         foreach (var (idSuffix, webhookEvent) in subscriptions)
