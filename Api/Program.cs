@@ -236,13 +236,7 @@ using var migrationScope = app.Services.CreateScope();
 migrationScope.ServiceProvider.GetRequiredService<IMigrationRunner>().MigrateUp();
 
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles(new StaticFileOptions
-{
-    OnPrepareResponse = ctx =>
-    {
-        ctx.Context.Response.Headers.CacheControl = "public,max-age=3600";
-    }
-});
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
