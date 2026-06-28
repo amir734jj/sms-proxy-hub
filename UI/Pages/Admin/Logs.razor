@@ -11,57 +11,22 @@
 
 @if (!Auth.IsAuthenticated || !Auth.IsAdmin) { Nav.NavigateTo("/"); return; }
 
-<div class="d-flex align-items-center mb-3 flex-wrap gap-2">
-    <h4 class="mb-0 me-3">Live Logs</h4>
+<div class="d-flex align-items-center mb-3 gap-2">
+    <h4 class="mb-0 me-2">Live Logs</h4>
     <span class="badge @(_connected ? "bg-success" : "bg-secondary")">@(_connected ? "Connected" : "Disconnected")</span>
-
-    <div class="ms-auto d-flex align-items-center gap-2">
-        <select class="form-select form-select-sm" style="width:auto" @bind="_sourceFilter">
-            <option value="All">All sources</option>
-            <option value="App">App</option>
-            <option value="SmsGate">SMS Gate</option>
-        </select>
-        <HxButton Text="@(_paused ? "Resume" : "Pause")" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="() => _paused = !_paused" />
-        <HxButton Text="Clear" Color="ThemeColor.Secondary" Size="ButtonSize.Small" OnClick="Clear" />
-    </div>
+    <HxButton Text="Clear" Color="ThemeColor.Secondary" Size="ButtonSize.Small" CssClass="ms-auto" OnClick="() => _lines.Clear()" />
 </div>
 
 @if (_error is not null) { <HxAlert Color="ThemeColor.Danger" CssClass="mb-3">@_error</HxAlert> }
 
-<div class="bg-dark text-light p-2 rounded font-monospace small" style="height:70vh; overflow-y:auto;">
-    @if (!_visible.Any())
-    {
-        <div class="text-muted">Waiting for logs…</div>
-    }
-    else
-    {
-        @foreach (var log in _visible)
-        {
-            <div class="text-break">
-                <span class="text-muted">@log.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
-                <span class="badge @SourceBadge(log.Source) me-1">@log.Source</span>
-                <span class="@LevelClass(log.Level)">@log.Level</span>
-                <span>@log.Message</span>
-                @if (!string.IsNullOrEmpty(log.Detail))
-                {
-                    <div class="text-warning ps-4">@log.Detail</div>
-                }
-            </div>
-        }
-    }
-</div>
+<pre class="bg-dark text-light p-3 rounded" style="height:75vh; overflow:auto; white-space:pre-wrap;">@string.Join("\n", _lines)</pre>
 
 @code {
-    readonly List<LogStreamEntry> _logs = [];
-    const int MaxEntries = 1000;
+    readonly List<string> _lines = [];
+    const int MaxLines = 1000;
     HubConnection? _hub;
     bool _connected;
-    bool _paused;
-    string _sourceFilter = "All";
     string? _error;
-
-    IEnumerable<LogStreamEntry> _visible =>
-        _sourceFilter == "All" ? _logs : _logs.Where(l => l.Source == _sourceFilter);
 
     protected override async Task OnInitializedAsync()
     {
@@ -72,10 +37,7 @@
         var hubUrl = $"{baseUrl.TrimEnd('/')}/hubs/logs";
 
         _hub = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
-            {
-                options.AccessTokenProvider = () => Task.FromResult(Auth.Token);
-            })
+            .WithUrl(hubUrl, options => options.AccessTokenProvider = () => Task.FromResult(Auth.Token))
             .WithAutomaticReconnect()
             .Build();
 
@@ -97,30 +59,17 @@
 
     void OnLog(LogStreamEntry entry)
     {
-        if (_paused) return;
+        var line = $"{entry.Timestamp.ToLocalTime():HH:mm:ss} [{entry.Source}] {entry.Level} {entry.Message}";
+        if (!string.IsNullOrEmpty(entry.Detail)) line += $"\n    {entry.Detail}";
 
-        _logs.Add(entry);
-        if (_logs.Count > MaxEntries) _logs.RemoveRange(0, _logs.Count - MaxEntries);
+        // Most recent on top; keep appending newer lines above older ones.
+        _lines.Insert(0, line);
+        if (_lines.Count > MaxLines) _lines.RemoveRange(MaxLines, _lines.Count - MaxLines);
         InvokeAsync(StateHasChanged);
     }
 
-    void Clear() => _logs.Clear();
-
-    static string SourceBadge(string source) => source == "SmsGate" ? "bg-info" : "bg-primary";
-
-    static string LevelClass(string level) => level.ToUpperInvariant() switch
-    {
-        "ERROR" or "FATAL" => "text-danger fw-bold me-1",
-        "WARN" or "WARNING" => "text-warning me-1",
-        "DEBUG" => "text-muted me-1",
-        _ => "text-success me-1"
-    };
-
     public async ValueTask DisposeAsync()
     {
-        if (_hub is not null)
-        {
-            await _hub.DisposeAsync();
-        }
+        if (_hub is not null) await _hub.DisposeAsync();
     }
 }
