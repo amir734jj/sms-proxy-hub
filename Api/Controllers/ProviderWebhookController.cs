@@ -61,8 +61,11 @@ public sealed class ProviderWebhookController(
             return NotFound();
         }
 
-        // Any inbound webhook means the device is alive; system:ping also carries battery/health.
-        deviceStatusService.Record(connectionId, rawBody);
+        // Device status tracking is SMS Gate-specific (system:ping health payload).
+        if (connection.ProviderType == SmsProviderType.SmsGate)
+        {
+            deviceStatusService.Record(connectionId, rawBody);
+        }
 
         var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson);
         if (config is null)
