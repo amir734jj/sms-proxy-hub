@@ -82,6 +82,34 @@ else
                                     {
                                         <span class="badge bg-secondary">Battery @ds.BatteryLevel%@(ds.IsCharging == true ? " (charging)" : "")</span>
                                     }
+                                    @if (ds.HasInternet is not null)
+                                    {
+                                        <span class="badge @(ds.HasInternet == true ? "bg-success" : "bg-warning text-dark")">
+                                            Internet @(ds.HasInternet == true ? "Connected" : "Down")
+                                        </span>
+                                    }
+                                    @if (ds.ConnectionTransport is not null)
+                                    {
+                                        <span class="badge bg-secondary">Transport @ds.ConnectionTransport</span>
+                                    }
+                                    @if (ds.CellularNetworkType is not null)
+                                    {
+                                        <span class="badge bg-secondary">Cellular @ds.CellularNetworkType</span>
+                                    }
+                                    @if (ds.FailedMessagesLastHour is not null)
+                                    {
+                                        <span class="badge @(ds.FailedMessagesLastHour == 0 ? "bg-success" : "bg-warning text-dark")">
+                                            Failed(last hour): @ds.FailedMessagesLastHour
+                                        </span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(ds.HealthStatus))
+                                    {
+                                        <span class="badge bg-dark">Health @ds.HealthStatus</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(ds.Version))
+                                    {
+                                        <span class="badge bg-secondary">App v@ds.Version</span>
+                                    }
                                 }
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
@@ -126,6 +154,37 @@ else
                                 </ul>
                             }
                         </div>
+                    }
+                    @if (_deviceStatus.TryGetValue(c.Id, out var statusDetails) && statusDetails?.Checks?.Count > 0)
+                    {
+                        <details class="mt-2">
+                            <summary class="small">Device health checks (@statusDetails.Checks.Count)</summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Check</th>
+                                            <th>Value</th>
+                                            <th>Unit</th>
+                                            <th>Status</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var check in statusDetails.Checks)
+                                        {
+                                            <tr>
+                                                <td><code>@check.Key</code></td>
+                                                <td>@(check.ObservedValue?.ToString() ?? "-")</td>
+                                                <td>@(check.ObservedUnit ?? "-")</td>
+                                                <td>@(check.Status ?? "-")</td>
+                                                <td>@(check.Description ?? "-")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
                     }
                 </BodyTemplate>
             </HxCard>
