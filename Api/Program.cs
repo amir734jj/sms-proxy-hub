@@ -26,7 +26,7 @@ using Serilog.Enrichers.Sensitive;
 var builder = WebApplication.CreateBuilder(args);
 
 var loggerConfiguration = new LoggerConfiguration()
-    .MinimumLevel.Debug()
+    .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Error)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
@@ -42,7 +42,7 @@ var loggerConfiguration = new LoggerConfiguration()
     //         options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
     //     }
     // })
-    // Console gets everything (Debug+); file/remote sinks stay at Information to avoid noise.
+    // Console mirrors everything at Information+; file/remote sinks also stay at Information.
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         restrictedToMinimumLevel: LogEventLevel.Information,
