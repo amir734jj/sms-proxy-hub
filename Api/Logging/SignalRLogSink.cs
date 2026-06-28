@@ -9,15 +9,11 @@ using Shared.Contracts;
 namespace Api.Logging;
 
 // Serilog sink that pushes each log event to admins connected to the LogsHub.
-// The IHubContext is assigned after the DI container is built (HubContext setter).
-public sealed class SignalRLogSink(IFormatProvider? formatProvider) : ILogEventSink
+public sealed class SignalRLogSink(IHubContext<LogsHub> hubContext, IFormatProvider? formatProvider) : ILogEventSink
 {
-    public static IHubContext<LogsHub>? HubContext { get; set; }
-
     public void Emit(LogEvent logEvent)
     {
-        var hub = HubContext;
-        if (hub is null || LogsHub.ClientCount == 0)
+        if (LogsHub.ClientCount == 0)
             return;
 
         var entry = new LogStreamEntry(
@@ -28,7 +24,7 @@ public sealed class SignalRLogSink(IFormatProvider? formatProvider) : ILogEventS
             logEvent.Exception?.ToString());
 
         // Fire-and-forget; never let log streaming break the request path.
-        _ = SafeSendAsync(hub, entry);
+        _ = SafeSendAsync(hubContext, entry);
     }
 
     private static async Task SafeSendAsync(IHubContext<LogsHub> hub, LogStreamEntry entry)
@@ -48,9 +44,10 @@ public static class SignalRLogSinkExtensions
 {
     public static LoggerConfiguration SignalR(
         this LoggerSinkConfiguration sinkConfiguration,
+        IHubContext<LogsHub> hubContext,
         LogEventLevel restrictedToMinimumLevel = LogEventLevel.Information,
         IFormatProvider? formatProvider = null)
     {
-        return sinkConfiguration.Sink(new SignalRLogSink(formatProvider), restrictedToMinimumLevel);
+        return sinkConfiguration.Sink(new SignalRLogSink(hubContext, formatProvider), restrictedToMinimumLevel);
     }
 }

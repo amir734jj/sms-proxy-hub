@@ -28,50 +28,48 @@ using Serilog.Enrichers.Sensitive;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var loggerConfiguration = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("System", LogEventLevel.Error)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
-    .Enrich.WithProperty("Application", "sms-proxy-hub")
-    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
-    .Enrich.WithProperty("MachineName", Environment.MachineName)
-    .Enrich.FromLogContext()
-    // .Enrich.WithSensitiveDataMasking(options =>
-    // {
-    //     options.Mode = MaskingMode.Globally;
-    //     foreach (var name in new[] { "PatientName", "Patient", "PatientPhone", "Phone", "To", "OriginalTo", "AdminPhone", "Message", "Payload", "Body", "Text" })
-    //     {
-    //         options.MaskProperties.Add(new MaskProperty { Name = name, Options = new MaskOptions { ShowLast = 4 } });
-    //     }
-    // })
-    // Console mirrors everything at Information+; file/remote sinks also stay at Information.
+// Bootstrap logger for startup messages before the DI container (and the hub) exist.
+Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-    // Streams logs to admins watching the LogsHub (no-op until the hub context is set post-build).
-    .WriteTo.SignalR()
-    .WriteTo.File(
-        restrictedToMinimumLevel: LogEventLevel.Information,
-        path: "logs/api-.log",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 7,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+    .CreateBootstrapLogger();
 
-var betterStackToken = builder.Configuration["BetterStack:SourceToken"];
-var betterStackHost = builder.Configuration["BetterStack:IngestingHost"];
-if (!string.IsNullOrWhiteSpace(betterStackToken) && !string.IsNullOrWhiteSpace(betterStackHost))
+// Full configuration runs once the service provider is built, so the SignalR sink can
+// resolve IHubContext<LogsHub> from DI instead of relying on a static back-reference.
+builder.Host.UseSerilog((context, services, configuration) =>
 {
-    var endpoint = betterStackHost.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-        ? betterStackHost
-        : $"https://{betterStackHost}";
-    loggerConfiguration.WriteTo.BetterStack(
-        restrictedToMinimumLevel: LogEventLevel.Information,
-        sourceToken: betterStackToken,
-        betterStackEndpoint: endpoint);
-}
+    configuration
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        .MinimumLevel.Override("System", LogEventLevel.Error)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
+        .Enrich.WithProperty("Application", "sms-proxy-hub")
+        .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
+        .Enrich.WithProperty("MachineName", Environment.MachineName)
+        .Enrich.FromLogContext()
+        // Console mirrors everything at Information+; file/remote sinks also stay at Information.
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+        // Streams logs to admins watching the LogsHub.
+        .WriteTo.SignalR(services.GetRequiredService<IHubContext<LogsHub>>())
+        .WriteTo.File(
+            restrictedToMinimumLevel: LogEventLevel.Information,
+            path: "logs/api-.log",
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 7,
+            outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
 
-Log.Logger = loggerConfiguration.CreateLogger();
-
-builder.Host.UseSerilog();
+    var betterStackToken = context.Configuration["BetterStack:SourceToken"];
+    var betterStackHost = context.Configuration["BetterStack:IngestingHost"];
+    if (!string.IsNullOrWhiteSpace(betterStackToken) && !string.IsNullOrWhiteSpace(betterStackHost))
+    {
+        var endpoint = betterStackHost.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? betterStackHost
+            : $"https://{betterStackHost}";
+        configuration.WriteTo.BetterStack(
+            restrictedToMinimumLevel: LogEventLevel.Information,
+            sourceToken: betterStackToken,
+            betterStackEndpoint: endpoint);
+    }
+});
 
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
@@ -279,9 +277,6 @@ app.UseSerilogRequestLogging(options =>
 app.MapControllers();
 app.MapHub<LogsHub>("/hubs/logs");
 app.MapHealthChecks("/api/health").AllowAnonymous();
-
-// Wire the live-log Serilog sink now that the hub context is available.
-SignalRLogSink.HubContext = app.Services.GetRequiredService<IHubContext<LogsHub>>();
 
 app.MapFallback("api/{**rest}", async context =>
 {
