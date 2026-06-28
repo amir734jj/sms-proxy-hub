@@ -23,6 +23,13 @@ namespace SmsProxyHub.Contracts
         [JsonProperty("message")]
         public string Message { get; set; }
 
+        // MMS replies may include a subject and attachments (media); null for SMS.
+        [JsonProperty("subject")]
+        public string Subject { get; set; }
+
+        [JsonProperty("attachments")]
+        public Newtonsoft.Json.Linq.JArray Attachments { get; set; }
+
         [JsonProperty("originalPayload")]
         public string OriginalPayload { get; set; }
 
