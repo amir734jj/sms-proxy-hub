@@ -5,6 +5,7 @@ using EfCoreRepository.Interfaces;
 using EfCoreRepository.Extensions;
 using EfCoreRepository.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Shared.Contracts;
 
 namespace Api.Services;
@@ -71,24 +72,28 @@ public sealed class WebhookService(
     }
 
     public async Task DeliverToAllAsync(Guid connectionId, WebhookEventType eventType,
-        string phone, string? message, string? originalPayload, string? reason = null)
+        string phone, string? message, string? originalPayload, string? reason = null,
+        string? subject = null, JToken? attachments = null)
     {
         var subscriptions = await GetActiveForConnectionAsync(connectionId);
         foreach (var sub in subscriptions)
         {
-            await DeliverWebhookAsync(sub, eventType, phone, message, originalPayload, connectionId, reason);
+            await DeliverWebhookAsync(sub, eventType, phone, message, originalPayload, connectionId, reason, subject, attachments);
         }
     }
 
     public async Task DeliverWebhookAsync(
         WebhookSubscription subscription, WebhookEventType eventType,
-        string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null)
+        string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null,
+        string? subject = null, JToken? attachments = null)
     {
         var callbackPayload = new
         {
             @event = eventType.ToString(),
             phone,
             message,
+            subject,
+            attachments,
             originalPayload,
             connectionId,
             reason,

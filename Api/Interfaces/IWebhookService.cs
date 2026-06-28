@@ -1,4 +1,5 @@
 using Api.Data.Entities;
+using Newtonsoft.Json.Linq;
 using Shared.Contracts;
 
 namespace Api.Interfaces;
@@ -10,9 +11,11 @@ public interface IWebhookService
     Task<bool> DeleteAsync(Guid userId, Guid id);
     Task<List<WebhookSubscription>> GetActiveForConnectionAsync(Guid connectionId);
     Task DeliverWebhookAsync(WebhookSubscription subscription, WebhookEventType eventType,
-        string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null);
+        string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null,
+        string? subject = null, JToken? attachments = null);
     Task DeliverToAllAsync(Guid connectionId, WebhookEventType eventType,
-        string phone, string? message, string? originalPayload, string? reason = null);
+        string phone, string? message, string? originalPayload, string? reason = null,
+        string? subject = null, JToken? attachments = null);
     Task<List<WebhookDeliveryDto>> GetDeliveriesForUserAsync(Guid userId, int limit = 50);
     Task<bool> ReplayAsync(Guid userId, Guid deliveryId);
 }

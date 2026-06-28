@@ -121,10 +121,18 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         var sender = payload["sender"]?.ToString() ?? payload["phoneNumber"]?.ToString() ?? "";
         var message = (payload["message"] ?? payload["body"] ?? payload["text"] ?? payload["subject"])?.ToString()?.Trim() ?? "";
 
+        // MMS replies (mms:downloaded) may include a subject and attachments (media). Forward them
+        // verbatim so the destination receives the full reply, not just the text.
+        var subject = payload["subject"]?.ToString();
+        var attachments = payload["attachments"];
+        var hasAttachments = attachments is JArray { Count: > 0 };
+
         return new IncomingSms(
             sender,
             message,
-            payload["messageId"]?.ToString());
+            payload["messageId"]?.ToString(),
+            string.IsNullOrWhiteSpace(subject) ? null : subject,
+            hasAttachments ? attachments : null);
     }
 
     public async Task<List<Device>> GetDevicesAsync(SmsGateConnectionConfig config)

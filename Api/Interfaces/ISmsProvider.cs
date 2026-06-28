@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using Shared.Contracts;
 
 namespace Api.Interfaces;
@@ -26,4 +27,12 @@ public interface ISmsProvider
     Task<IncomingSms?> ParseWebhookAsync(HttpRequest request, SmsConnectionConfig config);
 }
 
-public sealed record IncomingSms(string FromPhone, string Message, string? ProviderMessageId);
+// A parsed inbound reply. MMS replies additionally carry Subject and Attachments
+// (media), which SMS replies don't; Attachments is the provider's raw array so no
+// information is lost on the way to the destination.
+public sealed record IncomingSms(
+    string FromPhone,
+    string Message,
+    string? ProviderMessageId,
+    string? Subject = null,
+    JToken? Attachments = null);

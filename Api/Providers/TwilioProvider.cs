@@ -1,4 +1,5 @@
 using Api.Interfaces;
+using Newtonsoft.Json.Linq;
 using Shared.Contracts;
 using Twilio.Clients;
 using Twilio.Rest.Api.V2010.Account;
@@ -50,10 +51,29 @@ public sealed class TwilioProvider(IConfiguration configuration, ILogger<TwilioP
         var body = form["Body"].ToString().Trim();
         var messageSid = form["MessageSid"].ToString();
 
-        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(body))
+        // Twilio MMS media: NumMedia + MediaUrl{n}/MediaContentType{n}. Forward them as attachments.
+        JArray? attachments = null;
+        if (int.TryParse(form["NumMedia"].ToString(), out var numMedia) && numMedia > 0)
+        {
+            attachments = [];
+            for (var i = 0; i < numMedia; i++)
+            {
+                var url = form[$"MediaUrl{i}"].ToString();
+                if (string.IsNullOrWhiteSpace(url)) continue;
+                attachments.Add(new JObject
+                {
+                    ["url"] = url,
+                    ["contentType"] = form[$"MediaContentType{i}"].ToString()
+                });
+            }
+            if (attachments.Count == 0) attachments = null;
+        }
+
+        // Accept media-only MMS (empty body) as long as there's a sender and some content.
+        if (string.IsNullOrWhiteSpace(from) || (string.IsNullOrWhiteSpace(body) && attachments is null))
             return Task.FromResult<IncomingSms?>(null);
 
-        return Task.FromResult<IncomingSms?>(new IncomingSms(from, body, messageSid));
+        return Task.FromResult<IncomingSms?>(new IncomingSms(from, body, messageSid, Attachments: attachments));
     }
 
     public async Task RegisterWebhookAsync(TwilioConnectionConfig config, Guid connectionId)

@@ -97,7 +97,8 @@ public sealed class ProviderWebhookController(
 
         // Forward to all active webhook subscriptions for this connection
         await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsReply,
-            normalizedPhone, incoming.Message, originalPayload);
+            normalizedPhone, incoming.Message, originalPayload,
+            subject: incoming.Subject, attachments: incoming.Attachments);
 
         // Mark reply received after successful delivery
         if (originalMessage is not null)
