@@ -90,11 +90,15 @@ else
                                     }
                                     @if (ds.ConnectionTransport is not null)
                                     {
-                                        <span class="badge bg-secondary">Transport @ds.ConnectionTransport</span>
+                                        <span class="badge bg-secondary" title="Raw transport flags: @ds.ConnectionTransport">
+                                            Transport @TransportLabel(ds.ConnectionTransport.Value) (@ds.ConnectionTransport)
+                                        </span>
                                     }
                                     @if (ds.CellularNetworkType is not null)
                                     {
-                                        <span class="badge bg-secondary">Cellular @ds.CellularNetworkType</span>
+                                        <span class="badge bg-secondary" title="Raw cellular network index: @ds.CellularNetworkType">
+                                            Cellular @CellularTypeLabel(ds.CellularNetworkType.Value) (@ds.CellularNetworkType)
+                                        </span>
                                     }
                                     @if (ds.FailedMessagesLastHour is not null)
                                     {
@@ -108,9 +112,11 @@ else
                                     }
                                     @if (!string.IsNullOrWhiteSpace(ds.Version))
                                     {
-                                        <span class="badge bg-secondary">App v@ds.Version</span>
+                                        <span class="badge bg-secondary">App v@(ds.Version)</span>
                                     }
                                 }
+                            </div>
+                            <div class="mt-1">
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
                         </div>
@@ -285,5 +291,52 @@ else
             await LoadAsync();
         }
         catch (Exception ex) { _error = $"Reorder failed: {ex.Message}"; }
+    }
+
+    static string TransportLabel(int flags)
+    {
+        if (flags <= 0) return "Unknown";
+
+        var names = new List<string>();
+        if ((flags & 1) != 0) names.Add("Cellular");
+        if ((flags & 2) != 0) names.Add("Wi-Fi");
+        if ((flags & 4) != 0) names.Add("Bluetooth");
+        if ((flags & 8) != 0) names.Add("Ethernet");
+        if ((flags & 16) != 0) names.Add("VPN");
+        if ((flags & 32) != 0) names.Add("Wi-Fi Aware");
+        if ((flags & 64) != 0) names.Add("LoWPAN");
+        if ((flags & 128) != 0) names.Add("Test");
+        if ((flags & 256) != 0) names.Add("USB");
+
+        return names.Count == 0 ? "Unknown" : string.Join("+", names);
+    }
+
+    static string CellularTypeLabel(int networkType)
+    {
+        return networkType switch
+        {
+            0 => "Unknown",
+            1 => "GPRS (2G)",
+            2 => "EDGE (2G)",
+            3 => "UMTS (3G)",
+            4 => "CDMA",
+            5 => "EVDO rev.0",
+            6 => "EVDO rev.A",
+            7 => "1xRTT",
+            8 => "HSDPA",
+            9 => "HSUPA",
+            10 => "HSPA",
+            11 => "iDEN",
+            12 => "EVDO rev.B",
+            13 => "LTE (4G)",
+            14 => "eHRPD",
+            15 => "HSPA+",
+            16 => "GSM",
+            17 => "TD-SCDMA",
+            18 => "IWLAN",
+            19 => "LTE-CA",
+            20 => "NR (5G)",
+            _ => "Other"
+        };
     }
 }

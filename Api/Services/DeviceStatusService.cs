@@ -87,7 +87,9 @@ public sealed class DeviceStatusService : IDeviceStatusService
             if (health is null) return;
 
             status.ReleaseId = health.ReleaseId;
-            status.Version = health.Version;
+            status.Version = !string.IsNullOrWhiteSpace(health.Version)
+                ? health.Version
+                : (health.ReleaseId is not null ? $"release-{health.ReleaseId}" : null);
             status.HealthStatus = ToStatusString(health.Status);
 
             var checks = health.Checks;
