@@ -11,13 +11,19 @@ namespace Api.Providers;
 
 public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<SmsGateProvider> logger) : ISmsProvider
 {
-    private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresAt)> TokenCache = new();
+    // Cached access token plus the refresh token used to renew it and the time we should renew at.
+    private sealed record TokenCacheEntry(string AccessToken, string? RefreshToken, DateTimeOffset RefreshAt);
+
+    private static readonly ConcurrentDictionary<string, TokenCacheEntry> TokenCache = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> TokenLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SendThrottles = new();
     private static readonly TimeSpan ThrottleDelay = TimeSpan.FromMilliseconds(500);
 
     // Base URLs whose server returned 501 for the logs endpoint; we stop polling those.
     private static readonly ConcurrentDictionary<string, byte> LogsUnsupported = new();
+
+    // Base URLs whose server returned 501 for token refresh; we fall back to Basic auth for those.
+    private static readonly ConcurrentDictionary<string, byte> RefreshUnsupported = new();
 
     // SMS Gate validates the webhook Id with a `max=36` tag (see smsgateway.Webhook.id maxLength in
     // the OpenAPI spec). Exceeding it makes the registration POST fail with HTTP 400, which previously
@@ -276,34 +282,39 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         }
     }
 
+    // Returns an authenticated SmsGateClient, preferring a cached access token, then a refresh-token
+    // renewal, and finally a full Basic-credential re-authentication. Webhook/logs scopes are one-off.
     private async Task<SmsGateClient?> CreateAuthenticatedClientAsync(SmsGateConnectionConfig config, bool includeWebhookScope = false, bool includeLogsScope = false)
     {
         try
         {
-            // Tokens carrying extra scopes (webhooks/logs) are fetched fresh rather than cached.
             var extraScopes = includeWebhookScope || includeLogsScope;
             var cacheKey = $"{config.BaseUrl}|{config.Username}";
             var apiBaseUrl = config.BaseUrl.TrimEnd('/') + "/api";
 
-            // Fast path: reuse a still-valid cached base-scope token without locking.
-            if (!extraScopes && TryGetValidCachedToken(cacheKey, out var fastToken))
+            // One-off scoped tokens (webhooks/logs) are never cached or refreshed.
+            if (extraScopes)
+            {
+                var (scopedClient, _) = await AuthenticateWithBasicAsync(config, apiBaseUrl, BuildScopes(includeWebhookScope, includeLogsScope));
+                return scopedClient;
+            }
+
+            // Fast path: reuse a still-fresh cached access token without locking.
+            if (TryGetFreshAccessToken(cacheKey, out var fastToken))
                 return BuildBearerClient(fastToken, apiBaseUrl);
 
-            // One-off scoped tokens (webhooks/logs) are never cached, so no single-flight needed.
-            if (extraScopes)
-                return await AuthenticateAsync(config, cacheKey, BuildScopes(includeWebhookScope, includeLogsScope), cache: false, apiBaseUrl);
-
-            // Single-flight: only one token request per connection at a time, so concurrent
-            // callers don't all mint separate tokens when the cache is empty/expired.
+            // Single-flight: only one (re)authentication per connection at a time, so concurrent
+            // callers don't all mint or refresh separate tokens when the cache is stale.
             var gate = TokenLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync();
             try
             {
-                // Another caller may have refreshed the token while we waited on the lock.
-                if (TryGetValidCachedToken(cacheKey, out var token))
+                // Another caller may have renewed the token while we waited on the lock.
+                if (TryGetFreshAccessToken(cacheKey, out var token))
                     return BuildBearerClient(token, apiBaseUrl);
 
-                return await AuthenticateAsync(config, cacheKey, BuildScopes(false, false), cache: true, apiBaseUrl);
+                var renewed = await RenewAsync(config, cacheKey, apiBaseUrl);
+                return renewed is null ? null : BuildBearerClient(renewed, apiBaseUrl);
             }
             finally
             {
@@ -317,15 +328,97 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         }
     }
 
-    private static bool TryGetValidCachedToken(string cacheKey, out string token)
+    // Renews the cached base-scope token: tries a refresh-token renewal first, then Basic re-auth.
+    // Stores the result and returns the new access token (or null on failure).
+    private async Task<string?> RenewAsync(SmsGateConnectionConfig config, string cacheKey, string apiBaseUrl)
     {
-        if (TokenCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTimeOffset.UtcNow)
+        // Try a refresh first - it's cheaper and doesn't resend the Basic credentials.
+        if (TokenCache.TryGetValue(cacheKey, out var existing)
+            && !string.IsNullOrEmpty(existing.RefreshToken)
+            && !RefreshUnsupported.ContainsKey(config.BaseUrl))
         {
-            token = cached.Token;
+            var refreshed = await TryRefreshAsync(config.BaseUrl, existing.RefreshToken!, apiBaseUrl);
+            if (refreshed is not null)
+            {
+                StoreToken(cacheKey, refreshed);
+                return refreshed.Access_token;
+            }
+            // Refresh failed/unsupported - fall through to a full re-authentication.
+        }
+
+        var (_, tokenResponse) = await AuthenticateWithBasicAsync(config, apiBaseUrl, BuildScopes(false, false));
+        StoreToken(cacheKey, tokenResponse);
+        return tokenResponse.Access_token;
+    }
+
+    // Calls the refresh endpoint with the refresh token as the bearer credential.
+    // Returns null (and falls back to Basic) on 501/401/403 or any error.
+    private async Task<TokenResponse?> TryRefreshAsync(string baseUrl, string refreshToken, string apiBaseUrl)
+    {
+        try
+        {
+            var httpClient = httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+            var client = new SmsGateClient(httpClient) { BaseUrl = apiBaseUrl };
+            return await client.RefreshAsync();
+        }
+        catch (SmsGateApiException ex) when (ex.StatusCode == 501)
+        {
+            if (RefreshUnsupported.TryAdd(baseUrl, 0))
+                logger.LogInformation("SMS Gate server {BaseUrl} does not implement token refresh; using Basic re-auth.", baseUrl);
+            return null;
+        }
+        catch (SmsGateApiException ex) when (ex.StatusCode is 401 or 403)
+        {
+            // Refresh token expired or revoked; re-authenticate with credentials.
+            logger.LogInformation("SMS Gate refresh token rejected ({StatusCode}); re-authenticating with credentials.", ex.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SMS Gate token refresh failed; falling back to Basic auth.");
+            return null;
+        }
+    }
+
+    // Full authentication with Basic credentials. Returns a client already switched to the new
+    // access token, plus the raw token response (so the caller can cache it).
+    private async Task<(SmsGateClient Client, TokenResponse Token)> AuthenticateWithBasicAsync(
+        SmsGateConnectionConfig config, string apiBaseUrl, System.Collections.ObjectModel.Collection<JWTScope> scopes)
+    {
+        var httpClient = httpClientFactory.CreateClient();
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{config.Username}:{config.Password}"));
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+
+        var client = new SmsGateClient(httpClient) { BaseUrl = apiBaseUrl };
+
+        var token = await client.TokenPOSTAsync(new TokenRequest { Ttl = 3600, Scopes = scopes });
+
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Access_token);
+        return (client, token);
+    }
+
+    // Caches the token, scheduling renewal after 2/3 of its lifetime. Skips caching for
+    // non-positive lifetimes (clock skew / already expired).
+    private static void StoreToken(string cacheKey, TokenResponse token)
+    {
+        var expiresAt = token.Expires_at ?? DateTimeOffset.UtcNow.AddMinutes(50);
+        var lifetime = expiresAt - DateTimeOffset.UtcNow;
+        if (lifetime <= TimeSpan.Zero) return;
+
+        var refreshAt = DateTimeOffset.UtcNow + (lifetime * 2 / 3);
+        TokenCache[cacheKey] = new TokenCacheEntry(token.Access_token, token.Refresh_token, refreshAt);
+    }
+
+    private static bool TryGetFreshAccessToken(string cacheKey, out string accessToken)
+    {
+        if (TokenCache.TryGetValue(cacheKey, out var entry) && DateTimeOffset.UtcNow < entry.RefreshAt)
+        {
+            accessToken = entry.AccessToken;
             return true;
         }
 
-        token = string.Empty;
+        accessToken = string.Empty;
         return false;
     }
 
@@ -348,39 +441,5 @@ public sealed class SmsGateProvider(IHttpClientFactory httpClientFactory, IConfi
         if (includeLogsScope)
             scopes.Add(JWTScope.LogsRead);
         return scopes;
-    }
-
-    private async Task<SmsGateClient> AuthenticateAsync(
-        SmsGateConnectionConfig config,
-        string cacheKey,
-        System.Collections.ObjectModel.Collection<JWTScope> scopes,
-        bool cache,
-        string apiBaseUrl)
-    {
-        var httpClient = httpClientFactory.CreateClient();
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{config.Username}:{config.Password}"));
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
-
-        var client = new SmsGateClient(httpClient) { BaseUrl = apiBaseUrl };
-
-        var tokenResponse = await client.TokenPOSTAsync(new TokenRequest
-        {
-            Ttl = 3600,
-            Scopes = scopes
-        });
-
-        httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", tokenResponse.Access_token);
-
-        if (cache)
-        {
-            var expiresAt = tokenResponse.Expires_at ?? DateTimeOffset.UtcNow.AddMinutes(50);
-            var lifetime = expiresAt - DateTimeOffset.UtcNow;
-            // Refresh after 2/3 of the lifetime; ignore non-positive lifetimes (clock skew / already expired).
-            if (lifetime > TimeSpan.Zero)
-                TokenCache[cacheKey] = (tokenResponse.Access_token, DateTimeOffset.UtcNow + (lifetime * 2 / 3));
-        }
-
-        return client;
     }
 }
