@@ -103,7 +103,7 @@ builder.Services
 
 builder.Services.AddEfRepository<AppDbContext>(x =>
 {
-    x.Profile(Assembly.GetAssembly(typeof(AppDbContext)));
+    x.DefaultProfiles();
 });
 
 builder.Services
