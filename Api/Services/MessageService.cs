@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Api.Data.Entities;
 using Api.Interfaces;
 using EfCoreRepository.Interfaces;
@@ -17,6 +18,9 @@ public sealed class MessageService(
     IWebhookService webhookService,
     ILogger<MessageService> logger) : IMessageService
 {
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ConnectionSendThrottles = new();
+    private static readonly TimeSpan ConnectionThrottleDelay = TimeSpan.FromMilliseconds(100);
+
     private IBasicCrud<SmsMessage> Dal => repository.For<SmsMessage>();
 
     public async Task<(string? MessageId, bool Success, Guid? UsedConnectionId)> SendAsync(
@@ -84,7 +88,19 @@ public sealed class MessageService(
         }
 
         var provider = providerFactory.GetProvider(connection.ProviderType);
-        var messageId = await provider.SendAsync(normalizedPhone, message, config);
+        var throttle = ConnectionSendThrottles.GetOrAdd(connection.Id, _ => new SemaphoreSlim(1, 1));
+        await throttle.WaitAsync();
+
+        string? messageId;
+        try
+        {
+            messageId = await provider.SendAsync(normalizedPhone, message, config);
+        }
+        finally
+        {
+            await Task.Delay(ConnectionThrottleDelay);
+            throttle.Release();
+        }
 
         await Dal.Save(new SmsMessage
         {
