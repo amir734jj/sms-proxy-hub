@@ -126,6 +126,12 @@ else
                             <div class="mt-1">
                                 <small class="text-muted" title="Auto-registered with the provider on connection create">Webhook: <code>/api/provider-webhook/@c.Id</code></small>
                             </div>
+                            @if (c.ProviderType == SmsProviderType.SmsGate && !string.IsNullOrWhiteSpace(c.BaseUrl))
+                            {
+                                <div class="mt-1 text-break">
+                                    <small class="text-muted">Base URL: <code>@c.BaseUrl</code></small>
+                                </div>
+                            }
                             <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
                                 <label class="small text-muted mb-0" for="@($"retention-{c.Id}")">Retention days</label>
                                 <input id="@($"retention-{c.Id}")" type="number" class="form-control form-control-sm" style="width: 100px;"

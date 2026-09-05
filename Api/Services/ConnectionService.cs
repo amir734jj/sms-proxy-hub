@@ -20,11 +20,12 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
 
     public async Task<List<SmsConnectionDto>> GetAllForUserAsync(Guid userId)
     {
-        return (await Dal.GetAll(
+        var connections = (await Dal.GetAll(
             filterExprs: [c => c.UserId == userId],
-            orderBy: Ordering<SmsConnection>.Asc(c => c.Priority),
-            project: c => new SmsConnectionDto(c.Id, c.Name, c.ProviderType, c.IsActive, c.Priority, c.MessageRetentionDays, c.CreatedAt)
+            orderBy: Ordering<SmsConnection>.Asc(c => c.Priority)
         )).ToList();
+
+        return connections.Select(ToDto).ToList();
     }
 
     public async Task<SmsConnectionDto> CreateAsync(Guid userId, CreateConnectionRequest request)
@@ -48,7 +49,19 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
         else if (request.Config is TwilioConnectionConfig twilioConfig)
             await twilioProvider.RegisterWebhookAsync(twilioConfig, entity.Id);
 
-        return new SmsConnectionDto(entity.Id, entity.Name, entity.ProviderType, entity.IsActive, entity.Priority, entity.MessageRetentionDays, entity.CreatedAt);
+        return ToDto(entity);
+    }
+
+    private static SmsConnectionDto ToDto(SmsConnection connection)
+    {
+        string? baseUrl = null;
+        if (connection.ProviderType == SmsProviderType.SmsGate)
+        {
+            baseUrl = JsonConvert.DeserializeObject<SmsGateConnectionConfig>(connection.ConfigJson, JsonSettings)?.BaseUrl;
+        }
+
+        return new SmsConnectionDto(connection.Id, connection.Name, connection.ProviderType, connection.IsActive,
+            connection.Priority, connection.MessageRetentionDays, connection.CreatedAt, baseUrl);
     }
 
     public async Task<bool> UpdateAsync(Guid userId, Guid id, UpdateConnectionRequest request)

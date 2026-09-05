@@ -7,7 +7,8 @@ public record SmsConnectionDto(
     bool IsActive,
     int Priority,
     int MessageRetentionDays,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? BaseUrl = null);
 
 public record SmsGateDeviceDto(string Id, string Name, string? LastSeen);
 
