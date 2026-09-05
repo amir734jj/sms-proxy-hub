@@ -18,6 +18,9 @@ ENV ASPNETCORE_URLS=http://+:80
 ENV PORT=80
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-RUN apk add --no-cache tzdata krb5-libs
+RUN apk add --no-cache tzdata krb5-libs curl
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:80/api/health || exit 1
 
 ENTRYPOINT ["dotnet", "Api.dll"]
