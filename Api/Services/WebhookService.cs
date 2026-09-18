@@ -74,19 +74,29 @@ public sealed class WebhookService(
 
     public async Task DeliverToAllAsync(Guid connectionId, WebhookEventType eventType,
         string phone, string? message, string? originalPayload, string? reason = null,
-        string? subject = null, JToken? attachments = null)
+        string? subject = null, JToken? attachments = null, string? providerMessageId = null)
     {
         var subscriptions = await GetActiveForConnectionAsync(connectionId);
         foreach (var sub in subscriptions)
         {
-            await DeliverWebhookAsync(sub, eventType, phone, message, originalPayload, connectionId, reason, subject, attachments);
+            await DeliverWebhookAsync(
+                sub,
+                eventType,
+                phone,
+                message,
+                originalPayload,
+                connectionId,
+                reason,
+                subject,
+                attachments,
+                providerMessageId);
         }
     }
 
     public async Task DeliverWebhookAsync(
         WebhookSubscription subscription, WebhookEventType eventType,
         string phone, string? message, string? originalPayload, Guid connectionId, string? reason = null,
-        string? subject = null, JToken? attachments = null)
+        string? subject = null, JToken? attachments = null, string? providerMessageId = null)
     {
         var phoneE164 = PhoneUtility.NormalizePhoneNumber(phone) ?? phone;
         var phoneDigits = ToDigits(phoneE164);
@@ -105,6 +115,7 @@ public sealed class WebhookService(
             attachments,
             originalPayload,
             connectionId,
+            providerMessageId,
             reason,
             timestamp = DateTimeOffset.UtcNow
         };
@@ -125,6 +136,7 @@ public sealed class WebhookService(
             attachments = (JToken?)null,
             originalPayload,
             connectionId,
+            providerMessageId,
             reason,
             timestamp = callbackPayload.timestamp
         });

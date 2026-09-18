@@ -13,6 +13,7 @@ public sealed class ProviderWebhookController(
     IConnectionService connectionService,
     IMessageService messageService,
     IWebhookService webhookService,
+    IInboundWebhookReceiptService inboundWebhookReceiptService,
     IDeviceStatusService deviceStatusService,
     ILogger<ProviderWebhookController> logger) : ControllerBase
 {
@@ -106,6 +107,19 @@ public sealed class ProviderWebhookController(
         }
 
         var normalizedPhone = PhoneUtility.NormalizePhoneNumber(incoming.FromPhone) ?? incoming.FromPhone;
+        if (!string.IsNullOrWhiteSpace(incoming.ProviderMessageId)
+            && !await inboundWebhookReceiptService.TryClaimAsync(
+                connectionId,
+                incoming.ProviderMessageId,
+                HttpContext.RequestAborted))
+        {
+            logger.LogInformation(
+                "Ignoring duplicate inbound provider message {ProviderMessageId} for connection {ConnectionId}",
+                incoming.ProviderMessageId,
+                connectionId);
+            return Ok();
+        }
+
         logger.LogInformation("SMS received from {Phone} on connection {ConnectionId}: {Message}",
             normalizedPhone, connectionId, incoming.Message);
 
@@ -122,7 +136,9 @@ public sealed class ProviderWebhookController(
         // Forward to all active webhook subscriptions for this connection
         await webhookService.DeliverToAllAsync(connectionId, WebhookEventType.SmsReply,
             normalizedPhone, incoming.Message, originalPayload,
-            subject: incoming.Subject, attachments: incoming.Attachments);
+            subject: incoming.Subject,
+            attachments: incoming.Attachments,
+            providerMessageId: incoming.ProviderMessageId);
 
         // Mark reply received after successful delivery
         if (originalMessage is not null)

@@ -48,6 +48,9 @@ namespace SmsProxyHub.Contracts
         [JsonProperty("connectionId")]
         public System.Guid ConnectionId { get; set; }
 
+        [JsonProperty("providerMessageId")]
+        public string ProviderMessageId { get; set; }
+
         [JsonProperty("reason")]
         public string Reason { get; set; }
 
