@@ -8,6 +8,10 @@ public interface IConnectionsApi
     [Headers("Authorization: Bearer")]
     Task<List<SmsConnectionDto>> GetAllAsync();
 
+    [Get("/api/connections/{id}")]
+    [Headers("Authorization: Bearer")]
+    Task<SmsConnectionDetailsDto> GetAsync(Guid id);
+
     [Post("/api/connections")]
     [Headers("Authorization: Bearer")]
     Task<SmsConnectionDto> CreateAsync([Body] CreateConnectionRequest request);

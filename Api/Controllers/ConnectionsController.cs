@@ -18,6 +18,14 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
         return Ok(await connectionService.GetAllForUserAsync(User.GetUserId()));
     }
 
+    [HttpGet("{id:guid}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Get(Guid id)
+    {
+        var connection = await connectionService.GetForUserAsync(User.GetUserId(), id);
+        return connection is null ? NotFound() : Ok(connection);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateConnectionRequest req)
     {
@@ -31,6 +39,13 @@ public sealed class ConnectionsController(IConnectionService connectionService, 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateConnectionRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest("Connection name is required.");
+        if (req.Config is not (SmsGateConnectionConfig or TwilioConnectionConfig))
+            return BadRequest("A supported provider configuration is required.");
+        if (req.MessageRetentionDays < 1 || req.MessageRetentionDays > 3650)
+            return BadRequest("Retention days must be between 1 and 3650.");
+
         var updated = await connectionService.UpdateAsync(User.GetUserId(), id, req);
         return updated ? NoContent() : NotFound();
     }

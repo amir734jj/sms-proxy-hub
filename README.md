@@ -103,6 +103,19 @@ When you create a connection, sms-proxy-hub automatically registers the webhook 
 
 No manual setup needed -- just create the connection in the UI and it's ready.
 
+## Editing connections
+
+Click **Edit** on any existing connection to change its name, provider, active status,
+failover priority, retention days (1-3650), and all provider settings, including credentials.
+SmsGate supports editing the base URL, username, password, and device ID (enter an ID
+or fetch device suggestions). Twilio supports editing the account SID, auth token, and
+sender number. **Save changes** persists the settings and re-registers the provider webhook;
+**Cancel** discards the edits. Connection IDs and creation timestamps are system-managed.
+
+The authenticated `GET /api/connections/{id}` endpoint returns the owner's editable settings,
+including credentials, with caching disabled. Connection lists do not include credentials.
+Use `PUT /api/connections/{id}` to save the complete updated configuration.
+
 ## Docker
 
 ```bash

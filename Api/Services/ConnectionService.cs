@@ -28,6 +28,20 @@ public sealed class ConnectionService(IEfRepository repository, SmsGateProvider 
         return connections.Select(ToDto).ToList();
     }
 
+    public async Task<SmsConnectionDetailsDto?> GetForUserAsync(Guid userId, Guid id)
+    {
+        var connection = (await Dal.GetAll(
+            filterExprs: [c => c.Id == id && c.UserId == userId],
+            maxResults: 1)).FirstOrDefault();
+        if (connection is null) return null;
+
+        var config = JsonConvert.DeserializeObject<SmsConnectionConfig>(connection.ConfigJson, JsonSettings)
+            ?? throw new InvalidOperationException("Connection configuration is missing.");
+
+        return new SmsConnectionDetailsDto(connection.Id, connection.Name, config, connection.IsActive,
+            connection.Priority, connection.MessageRetentionDays);
+    }
+
     public async Task<SmsConnectionDto> CreateAsync(Guid userId, CreateConnectionRequest request)
     {
         // Auto-assign priority: newest gets highest (tried last)

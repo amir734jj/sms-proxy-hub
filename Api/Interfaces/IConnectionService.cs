@@ -5,6 +5,7 @@ namespace Api.Interfaces;
 public interface IConnectionService
 {
     Task<List<SmsConnectionDto>> GetAllForUserAsync(Guid userId);
+    Task<SmsConnectionDetailsDto?> GetForUserAsync(Guid userId, Guid id);
     Task<SmsConnectionDto> CreateAsync(Guid userId, CreateConnectionRequest request);
     Task<bool> UpdateAsync(Guid userId, Guid id, UpdateConnectionRequest request);
     Task<bool> DeleteAsync(Guid userId, Guid id);
