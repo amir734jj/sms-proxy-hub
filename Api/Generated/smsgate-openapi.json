@@ -15,7 +15,7 @@
         },
         "version": "1.44.0"
     },
-    "host": "443-gate.coolify.hesamian.com",
+    "host": "443-gate.hesamian.com",
     "basePath": "/api",
     "paths": {
         "/3rdparty/v1/auth/token": {

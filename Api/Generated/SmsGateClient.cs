@@ -39,7 +39,7 @@ namespace Api.Generated.SmsGate
         public SmsGateClient(System.Net.Http.HttpClient httpClient)
     #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            BaseUrl = "https://443-gate.coolify.hesamian.com/api";
+            BaseUrl = "https://443-gate.hesamian.com/api";
             _httpClient = httpClient;
             Initialize();
         }
