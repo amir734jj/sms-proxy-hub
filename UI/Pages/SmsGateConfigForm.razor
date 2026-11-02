@@ -43,6 +43,7 @@
     {
         Config = new();
         _devices = [];
+        StateHasChanged();
     }
 
     async Task FetchDevicesAsync()
